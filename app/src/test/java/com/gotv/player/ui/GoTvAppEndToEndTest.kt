@@ -1,5 +1,7 @@
 package com.gotv.player.ui
 
+import com.gotv.player.testing.SlowTest
+
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -17,9 +19,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
+@Category(SlowTest::class)
 @RunWith(RobolectricTestRunner::class)
 class GoTvAppEndToEndTest {
 

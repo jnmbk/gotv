@@ -47,6 +47,14 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            all {
+                // Slow tests are optional: run with `./gradlew test -PslowTests`
+                it.useJUnit {
+                    if (!project.hasProperty("slowTests")) {
+                        excludeCategories("com.gotv.player.testing.SlowTest")
+                    }
+                }
+            }
         }
     }
 }

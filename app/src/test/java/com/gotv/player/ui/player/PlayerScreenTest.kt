@@ -1,5 +1,7 @@
 package com.gotv.player.ui.player
 
+import com.gotv.player.testing.SlowTest
+
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -13,11 +15,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLooper
 import java.util.concurrent.TimeUnit
 
+@Category(SlowTest::class)
 @RunWith(RobolectricTestRunner::class)
 class PlayerScreenTest {
 
