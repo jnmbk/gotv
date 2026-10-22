@@ -1,6 +1,7 @@
 package com.gotv.player.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,20 +38,33 @@ fun GoTvApp(
             modifier = modifier
         )
     } else {
-        val playerEngine = remember(currentChannel.id) {
-            playerEngineFactory()
-        }
-        val playerViewModel = remember(currentChannel.id, playerEngine) {
-            PlayerViewModel(currentChannel, playerEngine)
+        val session = remember(currentChannel.id) {
+            PlayerSession(currentChannel, playerEngineFactory)
         }
 
         PlayerScreen(
-            viewModel = playerViewModel,
-            playerEngine = playerEngine,
+            viewModel = session.viewModel,
+            playerEngine = session.engine,
             onBack = {
                 activeChannel = null
             },
             modifier = modifier
         )
     }
+}
+
+/**
+ * Owns the engine and view model of one playback session. Releases them when the session
+ * leaves composition, including when composition is abandoned before being committed.
+ */
+private class PlayerSession(
+    channel: Channel,
+    engineFactory: () -> PlayerEngine
+) : RememberObserver {
+    val engine: PlayerEngine = engineFactory()
+    val viewModel = PlayerViewModel(channel, engine)
+
+    override fun onRemembered() = Unit
+    override fun onForgotten() = viewModel.release()
+    override fun onAbandoned() = viewModel.release()
 }
