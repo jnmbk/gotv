@@ -575,5 +575,143 @@ class ChannelGridScreenTest {
         val persistedIds = runBlocking { restartedRepo.getAllChannels().first().map { it.id } }
         assertEquals(listOf("c1", "c2"), persistedIds)
     }
+
+    @Test
+    fun dynamicStreamUrls_addAndRemoveBackupUrls_updatesDialogFieldsAndPersists() {
+        val repository = InMemoryChannelRepository()
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("empty_add_channel_button").performClick()
+        composeTestRule.onNodeWithTag("remove_stream_url_button_0").assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("channel_name_input").performTextInput("News Network")
+        composeTestRule.onNodeWithTag("stream_url_input").performTextClearance()
+        composeTestRule.onNodeWithTag("stream_url_input").performTextInput("https://primary.m3u8")
+
+        // Add backup stream URL
+        composeTestRule.onNodeWithTag("add_stream_url_button").performClick()
+        composeTestRule.onNodeWithTag("stream_url_input_1").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("remove_stream_url_button_0").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("remove_stream_url_button_1").assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("stream_url_input_1").performTextClearance()
+        composeTestRule.onNodeWithTag("stream_url_input_1").performTextInput("https://backup1.m3u8")
+
+        // Add another backup stream URL
+        composeTestRule.onNodeWithTag("add_stream_url_button").performClick()
+        composeTestRule.onNodeWithTag("stream_url_input_2").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("stream_url_input_2").performTextClearance()
+        composeTestRule.onNodeWithTag("stream_url_input_2").performTextInput("https://backup2.m3u8")
+
+        // Remove the middle backup URL (backup1)
+        composeTestRule.onNodeWithTag("remove_stream_url_button_1").performClick()
+        composeTestRule.onNodeWithTag("stream_url_input_2").assertDoesNotExist()
+
+        // Save channel
+        composeTestRule.onNodeWithTag("save_channel_button").performClick()
+        composeTestRule.waitForIdle()
+
+        val savedChannels = runBlocking { repository.getAllChannels().first() }
+        assertEquals(1, savedChannels.size)
+        assertEquals("News Network", savedChannels[0].name)
+        assertEquals(listOf("https://primary.m3u8", "https://backup2.m3u8"), savedChannels[0].streamUrls)
+    }
+
+    @Test
+    fun dynamicStreamUrls_deleteButtonHidden_whenOnlyOneFieldRemains() {
+        val repository = InMemoryChannelRepository()
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("empty_add_channel_button").performClick()
+        composeTestRule.onNodeWithTag("remove_stream_url_button_0").assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("add_stream_url_button").performClick()
+        composeTestRule.onNodeWithTag("remove_stream_url_button_0").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("remove_stream_url_button_1").assertIsDisplayed()
+
+        // Remove second field
+        composeTestRule.onNodeWithTag("remove_stream_url_button_1").performClick()
+        composeTestRule.onNodeWithTag("remove_stream_url_button_0").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("remove_stream_url_button_1").assertDoesNotExist()
+    }
+
+    @Test
+    fun dynamicStreamUrls_editMode_prefillsMultipleStreamUrls_andPersistsChanges() {
+        val repository = InMemoryChannelRepository()
+        val initialChannel = Channel(
+            id = "ch-multi",
+            name = "Multi Channel",
+            streamUrls = listOf("https://url1.m3u8", "https://url2.m3u8", "https://url3.m3u8")
+        )
+        runBlocking { repository.addChannel(initialChannel) }
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("channel_tile_ch-multi").performTouchInput { longClick() }
+        composeTestRule.onNodeWithTag("context_menu_edit").performClick()
+
+        // Verify prefilled values
+        composeTestRule.onNodeWithTag("stream_url_input").assertTextContains("https://url1.m3u8")
+        composeTestRule.onNodeWithTag("stream_url_input_1").assertTextContains("https://url2.m3u8")
+        composeTestRule.onNodeWithTag("stream_url_input_2").assertTextContains("https://url3.m3u8")
+
+        // Remove the first stream URL
+        composeTestRule.onNodeWithTag("remove_stream_url_button_0").performClick()
+
+        // Add a new backup URL
+        composeTestRule.onNodeWithTag("add_stream_url_button").performClick()
+        composeTestRule.onNodeWithTag("stream_url_input_2").performTextClearance()
+        composeTestRule.onNodeWithTag("stream_url_input_2").performTextInput("https://url4.m3u8")
+
+        composeTestRule.onNodeWithTag("save_channel_button").performClick()
+        composeTestRule.waitForIdle()
+
+        val updated = runBlocking { repository.getChannelById("ch-multi") }
+        assertEquals(listOf("https://url2.m3u8", "https://url3.m3u8", "https://url4.m3u8"), updated?.streamUrls)
+    }
+
+    @Test
+    fun dynamicStreamUrls_inlineQrScan_targetsSpecificStreamUrlField() {
+        val repository = InMemoryChannelRepository()
+        val scanner = FakeQrScannerProvider(cameraPayload = "https://scanned.example.com/backup.m3u8")
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel, qrScanner = scanner)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("empty_add_channel_button").performClick()
+        composeTestRule.onNodeWithTag("stream_url_input").performTextClearance()
+        composeTestRule.onNodeWithTag("stream_url_input").performTextInput("https://primary.example.com/live.m3u8")
+
+        composeTestRule.onNodeWithTag("add_stream_url_button").performClick()
+
+        // Scan QR into second field (index 1)
+        composeTestRule.onNodeWithTag("scan_stream_url_qr_button_1").performClick()
+        composeTestRule.onNodeWithTag("fake_camera").performClick()
+
+        // Second field has scanned URL, first field unchanged
+        composeTestRule.onNodeWithTag("stream_url_input_1").assertTextContains("https://scanned.example.com/backup.m3u8")
+        composeTestRule.onNodeWithTag("stream_url_input").assertTextContains("https://primary.example.com/live.m3u8")
+    }
 }
 
