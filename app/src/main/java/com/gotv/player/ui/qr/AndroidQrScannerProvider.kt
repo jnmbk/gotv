@@ -86,8 +86,7 @@ object AndroidQrScannerProvider : QrScannerProvider {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Camera permission is required to scan QR codes. " +
-                            "You can also import a QR code from an image.",
+                        text = "Camera permission is required to scan QR codes.",
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface
                     )

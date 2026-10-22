@@ -289,8 +289,7 @@ fun ChannelGridScreen(
                 onDismiss = viewModel::onDismissAddDialog,
                 onConfirm = { viewModel.onSaveChannel() },
                 qrScanner = qrScanner,
-                onScanQrClick = viewModel::onOpenQrScanner,
-                onQrImagePicked = viewModel::onQrPayloadScanned
+                onScanQr = viewModel::onOpenQrScanner
             )
         }
 

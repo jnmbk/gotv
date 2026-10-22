@@ -1,17 +1,16 @@
 package com.gotv.player.ui.channel
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,10 +32,9 @@ fun AddChannelDialog(
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
     qrScanner: QrScannerProvider? = null,
-    onScanQrClick: () -> Unit = {},
-    onQrImagePicked: (String?) -> Unit = {}
+    onScanQr: (QrScanTarget) -> Unit = {}
 ) {
-    val pickImage = qrScanner?.rememberImagePicker(onQrImagePicked)
+    val hasQrScanner = qrScanner != null
     AlertDialog(
         modifier = modifier.testTag("add_channel_dialog"),
         onDismissRequest = onDismiss,
@@ -45,34 +43,6 @@ fun AddChannelDialog(
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                if (pickImage != null) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = onScanQrClick,
-                            modifier = Modifier.testTag("scan_qr_button")
-                        ) {
-                            Text("Scan QR Code")
-                        }
-                        OutlinedButton(
-                            onClick = pickImage,
-                            modifier = Modifier.testTag("import_qr_image_button")
-                        ) {
-                            Text("From Image")
-                        }
-                    }
-                    if (uiState.qrError != null) {
-                        Text(
-                            text = uiState.qrError,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier
-                                .padding(top = 4.dp)
-                                .testTag("qr_error_text")
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
                 OutlinedTextField(
                     value = uiState.nameInput,
                     onValueChange = onNameChange,
@@ -93,6 +63,19 @@ fun AddChannelDialog(
                     onValueChange = onStreamUrlChange,
                     label = { Text("Stream URL") },
                     placeholder = { Text("https://example.com/live.m3u8") },
+                    trailingIcon = if (hasQrScanner) {
+                        {
+                            IconButton(
+                                onClick = { onScanQr(QrScanTarget.StreamUrl()) },
+                                modifier = Modifier.testTag("scan_stream_url_qr_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PhotoCamera,
+                                    contentDescription = "Scan stream URL QR code"
+                                )
+                            }
+                        }
+                    } else null,
                     isError = uiState.streamUrlError != null,
                     supportingText = uiState.streamUrlError?.let { { Text(it) } },
                     singleLine = true,
@@ -112,6 +95,19 @@ fun AddChannelDialog(
                     onValueChange = onLogoUrlChange,
                     label = { Text("Logo URL (Optional)") },
                     placeholder = { Text("https://example.com/logo.png") },
+                    trailingIcon = if (hasQrScanner) {
+                        {
+                            IconButton(
+                                onClick = { onScanQr(QrScanTarget.LogoUrl) },
+                                modifier = Modifier.testTag("scan_logo_url_qr_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PhotoCamera,
+                                    contentDescription = "Scan logo URL QR code"
+                                )
+                            }
+                        }
+                    } else null,
                     isError = uiState.logoUrlError != null,
                     supportingText = uiState.logoUrlError?.let { { Text(it) } },
                     singleLine = true,
@@ -143,4 +139,3 @@ fun AddChannelDialog(
         }
     )
 }
-
