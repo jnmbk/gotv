@@ -91,7 +91,7 @@ fun AddChannelDialog(
                 OutlinedTextField(
                     value = uiState.streamUrlInput,
                     onValueChange = onStreamUrlChange,
-                    label = { Text("Stream URL (M3U8)") },
+                    label = { Text("Stream URL") },
                     placeholder = { Text("https://example.com/live.m3u8") },
                     isError = uiState.streamUrlError != null,
                     supportingText = uiState.streamUrlError?.let { { Text(it) } },

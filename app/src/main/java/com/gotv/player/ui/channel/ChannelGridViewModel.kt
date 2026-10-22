@@ -52,7 +52,11 @@ class ChannelGridViewModel(
     )
 
     fun onOpenAddDialog() {
-        _dialogState.value = DialogState(isOpen = true)
+        _dialogState.value = DialogState(
+            isOpen = true,
+            streamUrl = ChannelValidator.DEFAULT_URL_PREFIX,
+            logoUrl = ChannelValidator.DEFAULT_URL_PREFIX
+        )
     }
 
     fun onDismissAddDialog() {
@@ -104,11 +108,17 @@ class ChannelGridViewModel(
     }
 
     fun onStreamUrlChanged(streamUrl: String) {
-        _dialogState.value = _dialogState.value.copy(streamUrl = streamUrl, streamUrlError = null)
+        _dialogState.value = _dialogState.value.copy(
+            streamUrl = ChannelValidator.stripDuplicateScheme(streamUrl),
+            streamUrlError = null
+        )
     }
 
     fun onLogoUrlChanged(logoUrl: String) {
-        _dialogState.value = _dialogState.value.copy(logoUrl = logoUrl, logoUrlError = null)
+        _dialogState.value = _dialogState.value.copy(
+            logoUrl = ChannelValidator.stripDuplicateScheme(logoUrl),
+            logoUrlError = null
+        )
     }
 
     fun onSaveChannel(): Boolean {
@@ -129,8 +139,8 @@ class ChannelGridViewModel(
         }
 
         val trimmedName = current.name.trim()
-        val trimmedStreamUrl = current.streamUrl.trim()
-        val trimmedLogoUrl = current.logoUrl.trim().ifEmpty { null }
+        val normalizedStreamUrl = ChannelValidator.normalizeUrl(current.streamUrl)
+        val normalizedLogoUrl = ChannelValidator.normalizeOptionalUrl(current.logoUrl)
         val channelId = UUID.randomUUID().toString()
 
         onDismissAddDialog()
@@ -139,14 +149,14 @@ class ChannelGridViewModel(
             val initialChannel = Channel(
                 id = channelId,
                 name = trimmedName,
-                streamUrl = trimmedStreamUrl,
-                logoUrl = trimmedLogoUrl,
+                streamUrl = normalizedStreamUrl,
+                logoUrl = normalizedLogoUrl,
                 localLogoPath = null
             )
             repository.addChannel(initialChannel)
 
-            if (trimmedLogoUrl != null && logoStorage != null) {
-                val cachedPath = logoStorage.downloadAndCacheLogo(channelId, trimmedLogoUrl)
+            if (normalizedLogoUrl != null && logoStorage != null) {
+                val cachedPath = logoStorage.downloadAndCacheLogo(channelId, normalizedLogoUrl)
                 if (cachedPath != null) {
                     repository.updateChannel(initialChannel.copy(localLogoPath = cachedPath))
                 }
