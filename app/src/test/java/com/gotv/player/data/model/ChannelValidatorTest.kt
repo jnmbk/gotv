@@ -52,13 +52,48 @@ class ChannelValidatorTest {
     }
 
     @Test
-    fun nonM3u8Url_failsValidation() {
+    fun nonM3u8Url_passesValidation() {
         val result = ChannelValidator.validate(
             name = "CNN",
             streamUrl = "https://example.com/stream.mp4"
         )
+        assertTrue(result.isValid)
+        assertNull(result.streamUrlError)
+    }
+
+    @Test
+    fun urlWithoutFileExtension_passesValidation() {
+        val result = ChannelValidator.validate(
+            name = "CNN",
+            streamUrl = "https://example.com/live/channel1"
+        )
+        assertTrue(result.isValid)
+        assertNull(result.streamUrlError)
+    }
+
+    @Test
+    fun handwrittenUrlsWithoutScheme_autoPrependsHttpsAndPassesValidation() {
+        val result = ChannelValidator.validate(
+            name = "CNN",
+            streamUrl = "example.com/live/stream",
+            logoUrl = "example.com/logo.png"
+        )
+        assertTrue(result.isValid)
+        assertEquals("https://example.com/live/stream", ChannelValidator.normalizeUrl("example.com/live/stream"))
+        assertEquals("https://example.com/logo.png", ChannelValidator.normalizeOptionalUrl("example.com/logo.png"))
+    }
+
+    @Test
+    fun bareDefaultHttpsPrefix_treatedAsEmpty() {
+        val result = ChannelValidator.validate(
+            name = "CNN",
+            streamUrl = "https://",
+            logoUrl = "https://"
+        )
         assertFalse(result.isValid)
-        assertEquals("Please enter a valid M3U8 URL (e.g. https://example.com/live.m3u8)", result.streamUrlError)
+        assertEquals("Stream URL cannot be empty", result.streamUrlError)
+        assertNull(result.logoUrlError)
+        assertNull(ChannelValidator.normalizeOptionalUrl("https://"))
     }
 
     @Test
@@ -68,7 +103,17 @@ class ChannelValidatorTest {
             streamUrl = "ftp://example.com/stream.m3u8"
         )
         assertFalse(result.isValid)
-        assertEquals("Please enter a valid M3U8 URL (e.g. https://example.com/live.m3u8)", result.streamUrlError)
+        assertEquals("Please enter a valid stream URL", result.streamUrlError)
+    }
+
+    @Test
+    fun invalidStreamUrl_failsValidation() {
+        val result = ChannelValidator.validate(
+            name = "CNN",
+            streamUrl = "invalid-url"
+        )
+        assertFalse(result.isValid)
+        assertEquals("Please enter a valid stream URL", result.streamUrlError)
     }
 
     @Test

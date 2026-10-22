@@ -51,7 +51,7 @@ class QrChannelParserTest {
             null,
             "",
             "hello world",
-            "https://example.com/page.html",
+            "ftp://example.com/stream",
             "{not json",
             """{"name":"x"}""",
             "gotv://channel",

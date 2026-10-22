@@ -105,7 +105,7 @@ class ChannelGridScreenTest {
 
         // Validation messages should guide the user
         composeTestRule.onNodeWithText("Channel name cannot be empty").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Please enter a valid M3U8 URL (e.g. https://example.com/live.m3u8)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Please enter a valid stream URL").assertIsDisplayed()
         // Dialog remains open
         composeTestRule.onNodeWithTag("add_channel_dialog").assertIsDisplayed()
     }

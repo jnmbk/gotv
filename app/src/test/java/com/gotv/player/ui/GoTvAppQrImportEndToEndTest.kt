@@ -88,7 +88,7 @@ class GoTvAppQrImportEndToEndTest {
         composeTestRule.onNodeWithTag("fake_camera").performClick()
 
         composeTestRule.onNodeWithTag("qr_error_text").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("stream_url_input").assertTextEquals("Stream URL (M3U8)", "")
+        composeTestRule.onNodeWithTag("stream_url_input").assertTextEquals("Stream URL", "https://")
     }
 
     @Test

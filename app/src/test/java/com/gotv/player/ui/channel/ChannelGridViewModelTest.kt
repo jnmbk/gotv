@@ -49,15 +49,35 @@ class ChannelGridViewModelTest {
     }
 
     @Test
-    fun openAndDismissDialog_togglesDialogState() = runTest(testDispatcher) {
+    fun openAndDismissDialog_togglesDialogStateAndPrefillsHttps() = runTest(testDispatcher) {
         advanceUntilIdle()
         viewModel.onOpenAddDialog()
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.isAddDialogOpen)
+        assertEquals("https://", viewModel.uiState.value.streamUrlInput)
+        assertEquals("https://", viewModel.uiState.value.logoUrlInput)
 
         viewModel.onDismissAddDialog()
         advanceUntilIdle()
         assertFalse(viewModel.uiState.value.isAddDialogOpen)
+    }
+
+    @Test
+    fun saveChannel_withHandwrittenUrlsWithoutScheme_prependsHttpsAndSaves() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onNameChanged("BBC One")
+        viewModel.onStreamUrlChanged("streams.example.com/live/bbc1")
+        viewModel.onLogoUrlChanged("example.com/bbc1-logo.png")
+
+        val saved = viewModel.onSaveChannel()
+        assertTrue(saved)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(1, state.channels.size)
+        assertEquals("https://streams.example.com/live/bbc1", state.channels[0].streamUrl)
+        assertEquals("https://example.com/bbc1-logo.png", state.channels[0].logoUrl)
     }
 
     @Test
@@ -194,7 +214,7 @@ class ChannelGridViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.isQrScannerOpen)
         assertNotNull(state.qrError)
-        assertEquals("", state.streamUrlInput)
+        assertEquals("https://", state.streamUrlInput)
     }
 
     @Test
