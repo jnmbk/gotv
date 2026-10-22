@@ -342,20 +342,26 @@ class ChannelGridScreenTest {
         )
         val viewModel = ChannelGridViewModel(repository)
 
+        var selectedChannel: Channel? = null
         composeTestRule.setContent {
             GoTvTheme {
-                ChannelGridScreen(viewModel = viewModel)
+                ChannelGridScreen(
+                    viewModel = viewModel,
+                    onChannelSelected = { selectedChannel = it }
+                )
             }
         }
 
-        // Long press channel with logoUrl -> shows Edit, Redownload Logo, Delete
+        // Long press channel with logoUrl -> shows Edit, Redownload Logo, Delete and does NOT trigger playback
         composeTestRule.onNodeWithTag("channel_tile_with-logo").performTouchInput { longClick() }
+        assertEquals(null, selectedChannel)
         composeTestRule.onNodeWithTag("context_menu_edit").assertIsDisplayed()
         composeTestRule.onNodeWithTag("context_menu_redownload_logo").assertIsDisplayed()
         composeTestRule.onNodeWithTag("context_menu_delete").assertIsDisplayed()
 
-        // Long press channel without logoUrl -> hides Redownload Logo
+        // Long press channel without logoUrl -> hides Redownload Logo and does NOT trigger playback
         composeTestRule.onNodeWithTag("channel_tile_no-logo").performTouchInput { longClick() }
+        assertEquals(null, selectedChannel)
         composeTestRule.onNodeWithTag("context_menu_edit").assertIsDisplayed()
         composeTestRule.onNodeWithTag("context_menu_redownload_logo").assertDoesNotExist()
         composeTestRule.onNodeWithTag("context_menu_delete").assertIsDisplayed()

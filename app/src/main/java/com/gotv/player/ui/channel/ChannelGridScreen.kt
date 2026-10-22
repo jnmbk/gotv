@@ -154,7 +154,7 @@ fun ChannelGridScreen(
                                     val event = awaitPointerEvent(PointerEventPass.Initial)
                                     val change = event.changes.firstOrNull { it.id == longPress.id } ?: break
                                     if (!change.pressed) {
-                                        if (hasDragged) change.consume()
+                                        change.consume()
                                         break
                                     }
                                     val delta = change.positionChangeIgnoreConsumed()
