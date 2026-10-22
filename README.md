@@ -24,6 +24,15 @@ A lightweight, low-RAM Android IPTV player designed for smooth live stream playb
 
 - [Architecture Specification](docs/architechture-spec.md)
 - [Agent Specifications & Issue Breakdown](.scratch/iptv-player/)
+- [Contributing & Commit Conventions](CONTRIBUTING.md)
+
+## Contributing & Development
+
+All code contributions, whether from human developers or AI agents, must adhere to:
+- **[Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)**: Structured prefixes (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`, etc.).
+- **Granular commits**: Small, atomic commits reflecting a single logical change rather than large batch commits.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full details and scope guidelines.
 
 ## License
 
