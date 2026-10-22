@@ -17,6 +17,7 @@ import com.gotv.player.player.PlayerEngine
 import com.gotv.player.ui.channel.ChannelGridScreen
 import com.gotv.player.ui.channel.ChannelGridViewModel
 import com.gotv.player.ui.player.PlayerScreen
+import com.gotv.player.ui.qr.QrScannerProvider
 import com.gotv.player.ui.player.PlayerViewModel
 
 @Composable
@@ -25,7 +26,8 @@ fun GoTvApp(
     logoStorage: LogoStorage? = null,
     playerEngineFactory: () -> PlayerEngine,
     networkMonitor: NetworkMonitor = AlwaysOnlineNetworkMonitor,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    qrScanner: QrScannerProvider? = null
 ) {
     var activeChannel by remember { mutableStateOf<Channel?>(null) }
     val channelViewModel = remember(channelRepository, logoStorage) {
@@ -40,7 +42,8 @@ fun GoTvApp(
             onChannelSelected = { channel ->
                 activeChannel = channel
             },
-            modifier = modifier
+            modifier = modifier,
+            qrScanner = qrScanner
         )
     } else {
         val session = remember(currentChannel.id) {

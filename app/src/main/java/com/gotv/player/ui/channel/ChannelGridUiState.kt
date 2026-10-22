@@ -15,7 +15,9 @@ data class ChannelGridUiState(
     val nameError: String? = null,
     val streamUrlError: String? = null,
     val logoUrlError: String? = null,
-    val selectedChannel: Channel? = null
+    val selectedChannel: Channel? = null,
+    val isQrScannerOpen: Boolean = false,
+    val qrError: String? = null
 ) {
     val isEmpty: Boolean
         get() = !isLoading && channels.isEmpty()

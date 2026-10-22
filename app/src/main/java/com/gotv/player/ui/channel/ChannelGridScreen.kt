@@ -24,14 +24,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material3.Surface
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.gotv.player.data.model.Channel
+import com.gotv.player.ui.qr.QrScannerProvider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChannelGridScreen(
     viewModel: ChannelGridViewModel,
     onChannelSelected: (Channel) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    qrScanner: QrScannerProvider? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -104,8 +109,26 @@ fun ChannelGridScreen(
                 onStreamUrlChange = viewModel::onStreamUrlChanged,
                 onLogoUrlChange = viewModel::onLogoUrlChanged,
                 onDismiss = viewModel::onDismissAddDialog,
-                onConfirm = { viewModel.onSaveChannel() }
+                onConfirm = { viewModel.onSaveChannel() },
+                qrScanner = qrScanner,
+                onScanQrClick = viewModel::onOpenQrScanner,
+                onQrImagePicked = viewModel::onQrPayloadScanned
             )
+        }
+
+        if (uiState.isAddDialogOpen && uiState.isQrScannerOpen && qrScanner != null) {
+            Dialog(
+                onDismissRequest = viewModel::onCloseQrScanner,
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    qrScanner.CameraScanner(
+                        onQrDetected = viewModel::onQrPayloadScanned,
+                        onClose = viewModel::onCloseQrScanner,
+                        modifier = Modifier
+                    )
+                }
+            }
         }
     }
 }

@@ -1,12 +1,17 @@
 package com.gotv.player.ui.channel
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -16,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.gotv.player.ui.qr.QrScannerProvider
 
 @Composable
 fun AddChannelDialog(
@@ -25,8 +31,12 @@ fun AddChannelDialog(
     onLogoUrlChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    qrScanner: QrScannerProvider? = null,
+    onScanQrClick: () -> Unit = {},
+    onQrImagePicked: (String?) -> Unit = {}
 ) {
+    val pickImage = qrScanner?.rememberImagePicker(onQrImagePicked)
     AlertDialog(
         modifier = modifier.testTag("add_channel_dialog"),
         onDismissRequest = onDismiss,
@@ -35,6 +45,34 @@ fun AddChannelDialog(
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
+                if (pickImage != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = onScanQrClick,
+                            modifier = Modifier.testTag("scan_qr_button")
+                        ) {
+                            Text("Scan QR Code")
+                        }
+                        OutlinedButton(
+                            onClick = pickImage,
+                            modifier = Modifier.testTag("import_qr_image_button")
+                        ) {
+                            Text("From Image")
+                        }
+                    }
+                    if (uiState.qrError != null) {
+                        Text(
+                            text = uiState.qrError,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .testTag("qr_error_text")
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 OutlinedTextField(
                     value = uiState.nameInput,
                     onValueChange = onNameChange,

@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.gotv.player.data.model.Channel
 import com.gotv.player.data.model.ChannelValidator
+import com.gotv.player.data.qr.QrChannelParser
+import com.gotv.player.data.qr.QrParseResult
 import com.gotv.player.data.repository.ChannelRepository
 import com.gotv.player.data.storage.LogoStorage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +41,9 @@ class ChannelGridViewModel(
             nameError = dialog.nameError,
             streamUrlError = dialog.streamUrlError,
             logoUrlError = dialog.logoUrlError,
-            selectedChannel = dialog.selectedChannel
+            selectedChannel = dialog.selectedChannel,
+            isQrScannerOpen = dialog.isQrScannerOpen,
+            qrError = dialog.qrError
         )
     }.stateIn(
         scope = viewModelScope,
@@ -53,6 +57,46 @@ class ChannelGridViewModel(
 
     fun onDismissAddDialog() {
         _dialogState.value = DialogState(isOpen = false)
+    }
+
+    fun onOpenQrScanner() {
+        _dialogState.value = _dialogState.value.copy(isQrScannerOpen = true, qrError = null)
+    }
+
+    fun onCloseQrScanner() {
+        _dialogState.value = _dialogState.value.copy(isQrScannerOpen = false)
+    }
+
+    /**
+     * Handles a payload from the camera or an image file ([payload] is null when an image had no
+     * readable QR code). A valid payload pre-fills the form; otherwise [ChannelGridUiState.qrError]
+     * is set.
+     */
+    fun onQrPayloadScanned(payload: String?) {
+        val current = _dialogState.value
+        if (payload == null) {
+            _dialogState.value = current.copy(
+                isQrScannerOpen = false,
+                qrError = "No QR code was found in the selected image"
+            )
+            return
+        }
+        _dialogState.value = when (val result = QrChannelParser.parse(payload)) {
+            is QrParseResult.Success -> current.copy(
+                isQrScannerOpen = false,
+                qrError = null,
+                name = result.name,
+                streamUrl = result.streamUrl,
+                logoUrl = result.logoUrl.orEmpty(),
+                nameError = null,
+                streamUrlError = null,
+                logoUrlError = null
+            )
+            is QrParseResult.Invalid -> current.copy(
+                isQrScannerOpen = false,
+                qrError = result.reason
+            )
+        }
     }
 
     fun onNameChanged(name: String) {
@@ -127,7 +171,9 @@ class ChannelGridViewModel(
         val nameError: String? = null,
         val streamUrlError: String? = null,
         val logoUrlError: String? = null,
-        val selectedChannel: Channel? = null
+        val selectedChannel: Channel? = null,
+        val isQrScannerOpen: Boolean = false,
+        val qrError: String? = null
     )
 
     class Factory(

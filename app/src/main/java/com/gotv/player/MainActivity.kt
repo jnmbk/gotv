@@ -8,6 +8,7 @@ import com.gotv.player.data.storage.FileLogoStorage
 import com.gotv.player.network.AndroidNetworkMonitor
 import com.gotv.player.player.Media3PlayerEngine
 import com.gotv.player.ui.GoTvApp
+import com.gotv.player.ui.qr.AndroidQrScannerProvider
 import com.gotv.player.ui.theme.GoTvTheme
 
 class MainActivity : ComponentActivity() {
@@ -32,7 +33,8 @@ class MainActivity : ComponentActivity() {
                     channelRepository = channelRepository,
                     logoStorage = logoStorage,
                     playerEngineFactory = { Media3PlayerEngine(applicationContext) },
-                    networkMonitor = networkMonitor
+                    networkMonitor = networkMonitor,
+                    qrScanner = AndroidQrScannerProvider
                 )
             }
         }
