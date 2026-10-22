@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.gotv.player.data.repository.SqliteChannelRepository
 import com.gotv.player.data.storage.FileLogoStorage
+import com.gotv.player.network.AndroidNetworkMonitor
 import com.gotv.player.player.Media3PlayerEngine
 import com.gotv.player.ui.GoTvApp
 import com.gotv.player.ui.theme.GoTvTheme
@@ -19,6 +20,10 @@ class MainActivity : ComponentActivity() {
         FileLogoStorage(applicationContext)
     }
 
+    private val networkMonitor by lazy {
+        AndroidNetworkMonitor(applicationContext)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -26,10 +31,16 @@ class MainActivity : ComponentActivity() {
                 GoTvApp(
                     channelRepository = channelRepository,
                     logoStorage = logoStorage,
-                    playerEngineFactory = { Media3PlayerEngine(applicationContext) }
+                    playerEngineFactory = { Media3PlayerEngine(applicationContext) },
+                    networkMonitor = networkMonitor
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        networkMonitor.close()
     }
 }
 

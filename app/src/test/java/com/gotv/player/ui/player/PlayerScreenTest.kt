@@ -3,6 +3,7 @@ package com.gotv.player.ui.player
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import com.gotv.player.data.model.Channel
@@ -14,6 +15,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLooper
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 class PlayerScreenTest {
@@ -107,5 +110,62 @@ class PlayerScreenTest {
 
         assertTrue(backClicked)
         assertTrue(fakeEngine.isReleased)
+    }
+
+    /** Runs pending main-looper work (view model coroutines) and advances the frozen compose clock. */
+    private fun settle(ms: Long) {
+        ShadowLooper.idleMainLooper(ms, TimeUnit.MILLISECONDS)
+        composeTestRule.mainClock.advanceTimeBy(ms)
+    }
+
+    @Test
+    fun networkDropAndReconnect_showsSpinnerThenResumes() {
+        val fakeEngine = FakePlayerEngine()
+        val network = com.gotv.player.network.FakeNetworkMonitor()
+        val viewModel = PlayerViewModel(testChannel, fakeEngine, network)
+        // The indeterminate spinner animates forever and would block waitForIdle().
+        composeTestRule.mainClock.autoAdvance = false
+
+        composeTestRule.setContent {
+            GoTvTheme { PlayerScreen(viewModel = viewModel, playerEngine = fakeEngine, onBack = {}) }
+        }
+        settle(100)
+        composeTestRule.onNodeWithTag("loading_spinner").assertDoesNotExist()
+
+        network.setOnline(false)
+        fakeEngine.updatePlaybackState(
+            com.gotv.player.player.PlaybackState(com.gotv.player.player.PlaybackStatus.BUFFERING)
+        )
+        settle(100)
+        composeTestRule.onNodeWithTag("loading_spinner").assertIsDisplayed()
+
+        network.setOnline(true)
+        settle(100)
+        composeTestRule.onNodeWithTag("loading_spinner").assertDoesNotExist()
+        assertEquals(2, fakeEngine.playCount)
+    }
+
+    @Test
+    fun persistentFailure_showsErrorAndAllowsReturningToGrid() {
+        val fakeEngine = FakePlayerEngine()
+        val network = com.gotv.player.network.FakeNetworkMonitor(initialOnline = false)
+        val policy = ReconnectPolicy(maxAttempts = 1, baseDelayMs = 1, offlineTimeoutMs = 1, attemptTimeoutMs = 1)
+        val viewModel = PlayerViewModel(testChannel, fakeEngine, network, policy)
+        var backCalled = false
+        composeTestRule.mainClock.autoAdvance = false
+
+        composeTestRule.setContent {
+            GoTvTheme { PlayerScreen(viewModel = viewModel, playerEngine = fakeEngine, onBack = { backCalled = true }) }
+        }
+        fakeEngine.updatePlaybackState(
+            com.gotv.player.player.PlaybackState(com.gotv.player.player.PlaybackStatus.ERROR, "x")
+        )
+        settle(500)
+        assertTrue(composeTestRule.onAllNodesWithTag("playback_error").fetchSemanticsNodes().isNotEmpty())
+        composeTestRule.onNodeWithTag("playback_error_message").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("loading_spinner").assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("error_back_button").performClick()
+        assertTrue(backCalled)
     }
 }

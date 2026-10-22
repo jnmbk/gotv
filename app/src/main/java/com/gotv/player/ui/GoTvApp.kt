@@ -10,6 +10,8 @@ import androidx.compose.ui.Modifier
 import com.gotv.player.data.model.Channel
 import com.gotv.player.data.repository.ChannelRepository
 import com.gotv.player.data.storage.LogoStorage
+import com.gotv.player.network.AlwaysOnlineNetworkMonitor
+import com.gotv.player.network.NetworkMonitor
 import com.gotv.player.player.PlayerEngine
 import com.gotv.player.ui.channel.ChannelGridScreen
 import com.gotv.player.ui.channel.ChannelGridViewModel
@@ -21,6 +23,7 @@ fun GoTvApp(
     channelRepository: ChannelRepository,
     logoStorage: LogoStorage? = null,
     playerEngineFactory: () -> PlayerEngine,
+    networkMonitor: NetworkMonitor = AlwaysOnlineNetworkMonitor,
     modifier: Modifier = Modifier
 ) {
     var activeChannel by remember { mutableStateOf<Channel?>(null) }
@@ -39,7 +42,7 @@ fun GoTvApp(
         )
     } else {
         val session = remember(currentChannel.id) {
-            PlayerSession(currentChannel, playerEngineFactory)
+            PlayerSession(currentChannel, playerEngineFactory, networkMonitor)
         }
 
         PlayerScreen(
@@ -59,10 +62,11 @@ fun GoTvApp(
  */
 private class PlayerSession(
     channel: Channel,
-    engineFactory: () -> PlayerEngine
+    engineFactory: () -> PlayerEngine,
+    networkMonitor: NetworkMonitor
 ) : RememberObserver {
     val engine: PlayerEngine = engineFactory()
-    val viewModel = PlayerViewModel(channel, engine)
+    val viewModel = PlayerViewModel(channel, engine, networkMonitor)
 
     override fun onRemembered() = Unit
     override fun onForgotten() = viewModel.release()
