@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Channel Persistence & Grid Dashboard
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Tapping a channel tile in the grid navigates to a dedicated full-screen live player view
 - [ ] M3U8 live stream begins playing automatically using a lightweight media pipeline
