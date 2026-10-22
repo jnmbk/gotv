@@ -18,6 +18,7 @@ data class ChannelGridUiState(
     val logoUrlError: String? = null,
     val selectedChannel: Channel? = null,
     val isQrScannerOpen: Boolean = false,
+    val qrScanTarget: QrScanTarget? = null,
     val qrError: String? = null,
     val deletingChannel: Channel? = null,
     val logoReloadVersions: Map<String, Int> = emptyMap()
