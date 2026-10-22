@@ -1,0 +1,22 @@
+# Gradle / Android Studio
+.gradle/
+build/
+app/build/
+*.iml
+.idea/
+local.properties
+.cxx/
+captures/
+.externalNativeBuild/
+
+# Android Keystore / signing
+*.jks
+*.keystore
+
+# Build artifacts
+*.apk
+*.aab
+
+# OS files
+.DS_Store
+Thumbs.db
