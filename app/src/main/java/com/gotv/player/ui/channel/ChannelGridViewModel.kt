@@ -26,15 +26,18 @@ class ChannelGridViewModel(
 ) : ViewModel() {
 
     private val _dialogState = MutableStateFlow(DialogState())
+    private val _logoReloadVersions = MutableStateFlow<Map<String, Int>>(emptyMap())
 
     val uiState: StateFlow<ChannelGridUiState> = combine(
         repository.getAllChannels(),
-        _dialogState
-    ) { channels, dialog ->
+        _dialogState,
+        _logoReloadVersions
+    ) { channels, dialog, logoVersions ->
         ChannelGridUiState(
             channels = channels,
             isLoading = false,
             isAddDialogOpen = dialog.isOpen,
+            editingChannel = dialog.editingChannel,
             nameInput = dialog.name,
             streamUrlInput = dialog.streamUrl,
             logoUrlInput = dialog.logoUrl,
@@ -43,7 +46,9 @@ class ChannelGridViewModel(
             logoUrlError = dialog.logoUrlError,
             selectedChannel = dialog.selectedChannel,
             isQrScannerOpen = dialog.isQrScannerOpen,
-            qrError = dialog.qrError
+            qrError = dialog.qrError,
+            deletingChannel = dialog.deletingChannel,
+            logoReloadVersions = logoVersions
         )
     }.stateIn(
         scope = viewModelScope,
@@ -52,15 +57,48 @@ class ChannelGridViewModel(
     )
 
     fun onOpenAddDialog() {
-        _dialogState.value = DialogState(
+        _dialogState.value = _dialogState.value.copy(
             isOpen = true,
+            editingChannel = null,
+            name = "",
             streamUrl = ChannelValidator.DEFAULT_URL_PREFIX,
-            logoUrl = ChannelValidator.DEFAULT_URL_PREFIX
+            logoUrl = ChannelValidator.DEFAULT_URL_PREFIX,
+            nameError = null,
+            streamUrlError = null,
+            logoUrlError = null,
+            isQrScannerOpen = false,
+            qrError = null
+        )
+    }
+
+    fun onOpenEditDialog(channel: Channel) {
+        _dialogState.value = _dialogState.value.copy(
+            isOpen = true,
+            editingChannel = channel,
+            name = channel.name,
+            streamUrl = channel.streamUrl,
+            logoUrl = channel.logoUrl ?: ChannelValidator.DEFAULT_URL_PREFIX,
+            nameError = null,
+            streamUrlError = null,
+            logoUrlError = null,
+            isQrScannerOpen = false,
+            qrError = null
         )
     }
 
     fun onDismissAddDialog() {
-        _dialogState.value = DialogState(isOpen = false)
+        _dialogState.value = _dialogState.value.copy(
+            isOpen = false,
+            editingChannel = null,
+            name = "",
+            streamUrl = "",
+            logoUrl = "",
+            nameError = null,
+            streamUrlError = null,
+            logoUrlError = null,
+            isQrScannerOpen = false,
+            qrError = null
+        )
     }
 
     fun onOpenQrScanner() {
@@ -141,9 +179,73 @@ class ChannelGridViewModel(
         val trimmedName = current.name.trim()
         val normalizedStreamUrl = ChannelValidator.normalizeUrl(current.streamUrl)
         val normalizedLogoUrl = ChannelValidator.normalizeOptionalUrl(current.logoUrl)
-        val channelId = UUID.randomUUID().toString()
+        val existingChannel = current.editingChannel
 
         onDismissAddDialog()
+
+        if (existingChannel != null) {
+            viewModelScope.launch {
+                val logoChanged = normalizedLogoUrl != existingChannel.logoUrl
+                val updatedChannel = when {
+                    normalizedLogoUrl == null -> {
+                        logoStorage?.deleteCachedLogo(existingChannel.id)
+                        existingChannel.copy(
+                            name = trimmedName,
+                            streamUrl = normalizedStreamUrl,
+                            logoUrl = null,
+                            localLogoPath = null
+                        )
+                    }
+                    logoChanged -> {
+                        val baseUpdated = existingChannel.copy(
+                            name = trimmedName,
+                            streamUrl = normalizedStreamUrl,
+                            logoUrl = normalizedLogoUrl
+                        )
+                        repository.updateChannel(baseUpdated)
+                        val cachedPath = logoStorage?.downloadAndCacheLogo(
+                            channelId = existingChannel.id,
+                            logoUrl = normalizedLogoUrl,
+                            forceRefresh = true
+                        )
+                        if (cachedPath != null) {
+                            incrementLogoVersion(existingChannel.id)
+                            baseUpdated.copy(localLogoPath = cachedPath)
+                        } else {
+                            logoStorage?.deleteCachedLogo(existingChannel.id)
+                            incrementLogoVersion(existingChannel.id)
+                            baseUpdated.copy(localLogoPath = null)
+                        }
+                    }
+                    else -> {
+                        val baseUpdated = existingChannel.copy(
+                            name = trimmedName,
+                            streamUrl = normalizedStreamUrl,
+                            logoUrl = normalizedLogoUrl
+                        )
+                        if (existingChannel.localLogoPath == null && logoStorage != null) {
+                            repository.updateChannel(baseUpdated)
+                            val cachedPath = logoStorage.downloadAndCacheLogo(
+                                channelId = existingChannel.id,
+                                logoUrl = normalizedLogoUrl
+                            )
+                            if (cachedPath != null) {
+                                incrementLogoVersion(existingChannel.id)
+                                baseUpdated.copy(localLogoPath = cachedPath)
+                            } else {
+                                baseUpdated
+                            }
+                        } else {
+                            baseUpdated
+                        }
+                    }
+                }
+                repository.updateChannel(updatedChannel)
+            }
+            return true
+        }
+
+        val channelId = UUID.randomUUID().toString()
 
         viewModelScope.launch {
             val initialChannel = Channel(
@@ -165,6 +267,51 @@ class ChannelGridViewModel(
         return true
     }
 
+    fun onRedownloadLogo(channel: Channel) {
+        val logoUrl = channel.logoUrl ?: return
+        val storage = logoStorage ?: return
+        viewModelScope.launch {
+            val cachedPath = storage.downloadAndCacheLogo(
+                channelId = channel.id,
+                logoUrl = logoUrl,
+                forceRefresh = true
+            )
+            if (cachedPath != null) {
+                val latest = repository.getChannelById(channel.id) ?: channel
+                repository.updateChannel(latest.copy(localLogoPath = cachedPath))
+                incrementLogoVersion(channel.id)
+            }
+        }
+    }
+
+    fun onRequestDeleteChannel(channel: Channel) {
+        _dialogState.value = _dialogState.value.copy(deletingChannel = channel)
+    }
+
+    fun onDismissDeleteDialog() {
+        _dialogState.value = _dialogState.value.copy(deletingChannel = null)
+    }
+
+    fun onConfirmDeleteChannel() {
+        val channel = _dialogState.value.deletingChannel ?: return
+        _dialogState.value = _dialogState.value.copy(deletingChannel = null)
+        viewModelScope.launch {
+            repository.deleteChannel(channel.id)
+            logoStorage?.deleteCachedLogo(channel.id)
+        }
+    }
+
+    fun onReorderChannels(orderedChannelIds: List<String>) {
+        viewModelScope.launch {
+            repository.reorderChannels(orderedChannelIds)
+        }
+    }
+
+    private fun incrementLogoVersion(channelId: String) {
+        val currentMap = _logoReloadVersions.value
+        _logoReloadVersions.value = currentMap + (channelId to ((currentMap[channelId] ?: 0) + 1))
+    }
+
     fun onChannelClicked(channel: Channel) {
         _dialogState.value = _dialogState.value.copy(selectedChannel = channel)
     }
@@ -175,6 +322,7 @@ class ChannelGridViewModel(
 
     private data class DialogState(
         val isOpen: Boolean = false,
+        val editingChannel: Channel? = null,
         val name: String = "",
         val streamUrl: String = "",
         val logoUrl: String = "",
@@ -183,7 +331,8 @@ class ChannelGridViewModel(
         val logoUrlError: String? = null,
         val selectedChannel: Channel? = null,
         val isQrScannerOpen: Boolean = false,
-        val qrError: String? = null
+        val qrError: String? = null,
+        val deletingChannel: Channel? = null
     )
 
     class Factory(

@@ -227,4 +227,210 @@ class ChannelGridViewModelTest {
 
         assertNotNull(viewModel.uiState.value.qrError)
     }
+
+    @Test
+    fun editChannel_prefillsFields_andUpdatesNameAndStreamUrl_preservingLogo() = runTest(testDispatcher) {
+        val logoStorage = InMemoryLogoStorage()
+        logoStorage.setCachedLogo("c1", "/mock/cache/c1.png")
+        val existing = Channel(
+            id = "c1",
+            name = "Old Name",
+            streamUrl = "https://old.example.com/live.m3u8",
+            logoUrl = "https://example.com/logo.png",
+            localLogoPath = "/mock/cache/c1.png"
+        )
+        repository.addChannel(existing)
+        val customViewModel = ChannelGridViewModel(repository, logoStorage)
+        advanceUntilIdle()
+
+        customViewModel.onOpenEditDialog(existing)
+        advanceUntilIdle()
+
+        val dialogState = customViewModel.uiState.value
+        assertTrue(dialogState.isAddDialogOpen)
+        assertTrue(dialogState.isEditMode)
+        assertEquals("Old Name", dialogState.nameInput)
+        assertEquals("https://old.example.com/live.m3u8", dialogState.streamUrlInput)
+        assertEquals("https://example.com/logo.png", dialogState.logoUrlInput)
+
+        customViewModel.onNameChanged("New Name")
+        customViewModel.onStreamUrlChanged("https://new.example.com/live.m3u8")
+        assertTrue(customViewModel.onSaveChannel())
+        advanceUntilIdle()
+
+        val updated = customViewModel.uiState.value.channels.single()
+        assertEquals("New Name", updated.name)
+        assertEquals("https://new.example.com/live.m3u8", updated.streamUrl)
+        assertEquals("https://example.com/logo.png", updated.logoUrl)
+        assertEquals("/mock/cache/c1.png", updated.localLogoPath)
+        assertEquals(0, logoStorage.downloadCalls)
+    }
+
+    @Test
+    fun editChannel_whenLogoUrlCleared_deletesCachedLogoAndClearsLocalLogoPath() = runTest(testDispatcher) {
+        val logoStorage = InMemoryLogoStorage()
+        logoStorage.setCachedLogo("c1", "/mock/cache/c1.png")
+        val existing = Channel(
+            id = "c1",
+            name = "Channel 1",
+            streamUrl = "https://example.com/live.m3u8",
+            logoUrl = "https://example.com/logo.png",
+            localLogoPath = "/mock/cache/c1.png"
+        )
+        repository.addChannel(existing)
+        val customViewModel = ChannelGridViewModel(repository, logoStorage)
+        advanceUntilIdle()
+
+        customViewModel.onOpenEditDialog(existing)
+        customViewModel.onLogoUrlChanged("")
+        assertTrue(customViewModel.onSaveChannel())
+        advanceUntilIdle()
+
+        val updated = customViewModel.uiState.value.channels.single()
+        assertNull(updated.logoUrl)
+        assertNull(updated.localLogoPath)
+        assertTrue(logoStorage.deletedChannelIds.contains("c1"))
+        assertFalse(logoStorage.hasCachedLogo("c1"))
+    }
+
+    @Test
+    fun editChannel_whenLogoUrlChanged_forcesRedownloadAndUpdatesLogo() = runTest(testDispatcher) {
+        val logoStorage = InMemoryLogoStorage()
+        logoStorage.setCachedLogo("c1", "/mock/cache/c1.png")
+        val existing = Channel(
+            id = "c1",
+            name = "Channel 1",
+            streamUrl = "https://example.com/live.m3u8",
+            logoUrl = "https://example.com/old-logo.png",
+            localLogoPath = "/mock/cache/c1.png"
+        )
+        repository.addChannel(existing)
+        val customViewModel = ChannelGridViewModel(repository, logoStorage)
+        advanceUntilIdle()
+
+        customViewModel.onOpenEditDialog(existing)
+        customViewModel.onLogoUrlChanged("https://example.com/new-logo.png")
+        assertTrue(customViewModel.onSaveChannel())
+        advanceUntilIdle()
+
+        val updated = customViewModel.uiState.value.channels.single()
+        assertEquals("https://example.com/new-logo.png", updated.logoUrl)
+        assertEquals("/mock/cache/c1.png", updated.localLogoPath)
+        assertEquals(1, logoStorage.downloadCalls)
+        assertTrue(logoStorage.lastForceRefresh)
+        assertEquals(1, customViewModel.uiState.value.logoReloadVersions["c1"])
+    }
+
+    @Test
+    fun editChannel_whenNewLogoDownloadFails_deletesOldCachedLogoAndClearsLocalLogoPath() = runTest(testDispatcher) {
+        val logoStorage = InMemoryLogoStorage(shouldFail = true)
+        logoStorage.setCachedLogo("c1", "/mock/cache/c1.png")
+        val existing = Channel(
+            id = "c1",
+            name = "Channel 1",
+            streamUrl = "https://example.com/live.m3u8",
+            logoUrl = "https://example.com/old-logo.png",
+            localLogoPath = "/mock/cache/c1.png"
+        )
+        repository.addChannel(existing)
+        val customViewModel = ChannelGridViewModel(repository, logoStorage)
+        advanceUntilIdle()
+
+        customViewModel.onOpenEditDialog(existing)
+        customViewModel.onLogoUrlChanged("https://example.com/broken-logo.png")
+        assertTrue(customViewModel.onSaveChannel())
+        advanceUntilIdle()
+
+        val updated = customViewModel.uiState.value.channels.single()
+        assertEquals("https://example.com/broken-logo.png", updated.logoUrl)
+        assertNull(updated.localLogoPath)
+        assertTrue(logoStorage.deletedChannelIds.contains("c1"))
+    }
+
+    @Test
+    fun redownloadLogo_forcesRefreshAndIncrementsVersionOnSuccess_andPreservesOnFailure() = runTest(testDispatcher) {
+        val logoStorage = InMemoryLogoStorage()
+        val existing = Channel(
+            id = "c1",
+            name = "Channel 1",
+            streamUrl = "https://example.com/live.m3u8",
+            logoUrl = "https://example.com/logo.png",
+            localLogoPath = "/mock/cache/c1.png"
+        )
+        logoStorage.setCachedLogo("c1", "/mock/cache/c1.png")
+        repository.addChannel(existing)
+        val customViewModel = ChannelGridViewModel(repository, logoStorage)
+        advanceUntilIdle()
+
+        customViewModel.onRedownloadLogo(existing)
+        advanceUntilIdle()
+
+        assertEquals(1, logoStorage.downloadCalls)
+        assertTrue(logoStorage.lastForceRefresh)
+        assertEquals(1, customViewModel.uiState.value.logoReloadVersions["c1"])
+
+        // When forced redownload fails, existing localLogoPath and cached file are preserved
+        logoStorage.shouldFail = true
+        val afterFirst = customViewModel.uiState.value.channels.single()
+        customViewModel.onRedownloadLogo(afterFirst)
+        advanceUntilIdle()
+
+        assertEquals(2, logoStorage.downloadCalls)
+        assertEquals("/mock/cache/c1.png", customViewModel.uiState.value.channels.single().localLogoPath)
+        assertTrue(logoStorage.hasCachedLogo("c1"))
+        assertEquals(1, customViewModel.uiState.value.logoReloadVersions["c1"])
+    }
+
+    @Test
+    fun deleteChannel_requiresConfirmation_andDeletesChannelAndCachedLogo() = runTest(testDispatcher) {
+        val logoStorage = InMemoryLogoStorage()
+        logoStorage.setCachedLogo("c1", "/mock/cache/c1.png")
+        val existing = Channel(
+            id = "c1",
+            name = "Channel 1",
+            streamUrl = "https://example.com/live.m3u8",
+            logoUrl = "https://example.com/logo.png",
+            localLogoPath = "/mock/cache/c1.png"
+        )
+        repository.addChannel(existing)
+        val customViewModel = ChannelGridViewModel(repository, logoStorage)
+        advanceUntilIdle()
+
+        customViewModel.onRequestDeleteChannel(existing)
+        advanceUntilIdle()
+        assertEquals(existing, customViewModel.uiState.value.deletingChannel)
+
+        // Dismissing keeps the channel
+        customViewModel.onDismissDeleteDialog()
+        advanceUntilIdle()
+        assertNull(customViewModel.uiState.value.deletingChannel)
+        assertEquals(1, customViewModel.uiState.value.channels.size)
+
+        // Confirming deletes channel and cached logo
+        customViewModel.onRequestDeleteChannel(existing)
+        customViewModel.onConfirmDeleteChannel()
+        advanceUntilIdle()
+
+        assertNull(customViewModel.uiState.value.deletingChannel)
+        assertTrue(customViewModel.uiState.value.channels.isEmpty())
+        assertTrue(logoStorage.deletedChannelIds.contains("c1"))
+    }
+
+    @Test
+    fun reorderChannels_updatesRepositoryOrder() = runTest(testDispatcher) {
+        val c1 = Channel(id = "c1", name = "One", streamUrl = "https://example.com/1.m3u8")
+        val c2 = Channel(id = "c2", name = "Two", streamUrl = "https://example.com/2.m3u8")
+        val c3 = Channel(id = "c3", name = "Three", streamUrl = "https://example.com/3.m3u8")
+        repository.addChannel(c1)
+        repository.addChannel(c2)
+        repository.addChannel(c3)
+        advanceUntilIdle()
+
+        assertEquals(listOf("c3", "c2", "c1"), viewModel.uiState.value.channels.map { it.id })
+
+        viewModel.onReorderChannels(listOf("c1", "c3", "c2"))
+        advanceUntilIdle()
+
+        assertEquals(listOf("c1", "c3", "c2"), viewModel.uiState.value.channels.map { it.id })
+    }
 }
