@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Empty state with clear call-to-action is displayed when no channels have been added yet
 - [ ] Tapping the add button opens a form allowing the user to input a channel name and stream URL
