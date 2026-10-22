@@ -160,4 +160,51 @@ class ChannelGridViewModelTest {
         advanceUntilIdle()
         assertNull(viewModel.uiState.value.selectedChannel)
     }
+
+    @Test
+    fun qrPayloadScanned_withValidJson_prefillsFormAndClosesScanner() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onOpenQrScanner()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isQrScannerOpen)
+
+        viewModel.onQrPayloadScanned(
+            """{"name":"Sports HD","url":"https://streams.example.com/sports.m3u8","logo":"https://example.com/logo.png"}"""
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isQrScannerOpen)
+        assertNull(state.qrError)
+        assertEquals("Sports HD", state.nameInput)
+        assertEquals("https://streams.example.com/sports.m3u8", state.streamUrlInput)
+        assertEquals("https://example.com/logo.png", state.logoUrlInput)
+    }
+
+    @Test
+    fun qrPayloadScanned_withInvalidPayload_setsQrErrorAndClosesScanner() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onOpenQrScanner()
+
+        viewModel.onQrPayloadScanned("not-a-valid-qr-payload")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isQrScannerOpen)
+        assertNotNull(state.qrError)
+        assertEquals("", state.streamUrlInput)
+    }
+
+    @Test
+    fun qrPayloadScanned_withNullFromEmptyImage_setsQrError() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+
+        viewModel.onQrPayloadScanned(null)
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.uiState.value.qrError)
+    }
 }
