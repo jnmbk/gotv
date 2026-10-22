@@ -54,6 +54,7 @@ A lightweight, low-RAM Android IPTV application tailored for smooth stream playb
 - **Resilience and Reconnection State Machine**:
   - States: `Idle`, `Connecting`, `Playing`, `BufferingOrReconnecting`, `Failed`.
   - When connection is dropped or media player reports buffering timeout, transition to `BufferingOrReconnecting` with visible spinner, holding player position/pipeline and subscribing to system network connectivity callbacks to trigger immediate retry.
+- **Commit Standards**: Granular atomic commits adhering strictly to the Conventional Commits specification (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`, etc.). Monolithic multi-purpose commits are prohibited.
 
 ## Testing Decisions
 
