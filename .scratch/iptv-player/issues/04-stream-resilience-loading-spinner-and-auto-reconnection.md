@@ -4,11 +4,11 @@
 
 **Blocked by:** 03: Live M3U8 Full-Screen Playback & Volume Control
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Buffering or network interruptions during live playback trigger an immediate loading spinner overlay
-- [ ] Restoring network connectivity automatically reconnects to the stream and resumes playback
-- [ ] Persistent network loss or broken stream URLs transition to a clear failure message after retries
-- [ ] User can cleanly exit back to the channel grid from an error or reconnecting state
-- [ ] End-to-end tests simulate network drop and reconnect events to verify spinner appearance and automatic resumption
+- [x] Buffering or network interruptions during live playback trigger an immediate loading spinner overlay
+- [x] Restoring network connectivity automatically reconnects to the stream and resumes playback
+- [x] Persistent network loss or broken stream URLs transition to a clear failure message after retries
+- [x] User can cleanly exit back to the channel grid from an error or reconnecting state
+- [x] End-to-end tests simulate network drop and reconnect events to verify spinner appearance and automatic resumption
 
