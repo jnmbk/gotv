@@ -4,12 +4,12 @@
 
 **Blocked by:** 01: Channel Persistence & Grid Dashboard
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Channel creation screen provides options to scan a QR code via device camera or import from an image file
-- [ ] Camera scanner recognizes QR codes in real time and handles camera permission requests gracefully
-- [ ] Image file picker reads and extracts QR code data from selected device images
-- [ ] Successfully parsed QR payload pre-fills the channel name, stream URL, and logo fields in the form
-- [ ] User is notified with clear feedback if a scanned QR code contains an invalid format
-- [ ] End-to-end tests verify camera and image QR parsing flows using fake scanner inputs
+- [x] Channel creation screen provides options to scan a QR code via device camera or import from an image file
+- [x] Camera scanner recognizes QR codes in real time and handles camera permission requests gracefully
+- [x] Image file picker reads and extracts QR code data from selected device images
+- [x] Successfully parsed QR payload pre-fills the channel name, stream URL, and logo fields in the form
+- [x] User is notified with clear feedback if a scanned QR code contains an invalid format
+- [x] End-to-end tests verify camera and image QR parsing flows using fake scanner inputs
 
