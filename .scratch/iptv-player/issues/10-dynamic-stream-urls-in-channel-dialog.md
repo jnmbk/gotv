@@ -4,7 +4,7 @@
 
 **Blocked by:** 08: Multiple Backup Stream Links & Failover Playback, 09: Per-Input QR Scanning & Dialog Scanner Removal
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Design Decisions
 
@@ -27,10 +27,10 @@
 
 ## Acceptance Criteria
 
-- [ ] Add/Edit Channel dialog displays a dynamic list of stream URL fields
-- [ ] Users can add new backup stream URL fields via the "Add Stream URL" button
-- [ ] Users can delete secondary stream URL fields (delete button hidden or disabled when only 1 field remains)
-- [ ] Each stream URL field has an inline QR scan button that targets that specific URL field
-- [ ] Edit mode pre-fills all existing stream URLs from the channel
-- [ ] Saving validates all stream URLs and persists the full list to `ChannelRepository`
-- [ ] Unit and Compose UI tests verify adding, removing, editing, and validating multiple stream URLs
+- [x] Add/Edit Channel dialog displays a dynamic list of stream URL fields
+- [x] Users can add new backup stream URL fields via the "Add Stream URL" button
+- [x] Users can delete secondary stream URL fields (delete button hidden or disabled when only 1 field remains)
+- [x] Each stream URL field has an inline QR scan button that targets that specific URL field
+- [x] Edit mode pre-fills all existing stream URLs from the channel
+- [x] Saving validates all stream URLs and persists the full list to `ChannelRepository`
+- [x] Unit and Compose UI tests verify adding, removing, editing, and validating multiple stream URLs
