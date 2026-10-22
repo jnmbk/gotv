@@ -9,3 +9,4 @@ tv streams have only sound control
 touching screen while a stream is playing shows up channel list on the left for 10 seconds while shrinking display
 it should handle connection problems gracefully
 a loading spinner should show up on connection problem and it should play again when connection is established
+all code and documentation changes must be committed granularly using Conventional Commits
