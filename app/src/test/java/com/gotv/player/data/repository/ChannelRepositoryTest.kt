@@ -162,5 +162,119 @@ class ChannelRepositoryTest {
         restartedRepo.addChannel(ch4)
         assertEquals(listOf("c4", "c1", "c3", "c2"), restartedRepo.getAllChannels().first().map { it.id })
     }
+
+    @Test
+    fun sqliteRepository_supportsMultipleStreamUrlsAndLastPlayedPersistence() = runTest(testDispatcher) {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "test_multiple_urls.db"
+        val repo = SqliteChannelRepository(
+            context = context,
+            dbName = dbName,
+            ioDispatcher = testDispatcher
+        )
+
+        val ch = Channel(
+            id = "c1",
+            name = "Failover HD",
+            streamUrls = listOf("https://s1.test/live.m3u8", "https://s2.test/live.m3u8", "https://s3.test/live.m3u8"),
+            lastPlayedUrl = "https://s2.test/live.m3u8"
+        )
+        repo.addChannel(ch)
+
+        val loaded = repo.getChannelById("c1")
+        assertNotNull(loaded)
+        assertEquals(listOf("https://s1.test/live.m3u8", "https://s2.test/live.m3u8", "https://s3.test/live.m3u8"), loaded?.streamUrls)
+        assertEquals("https://s2.test/live.m3u8", loaded?.lastPlayedUrl)
+        assertEquals("https://s2.test/live.m3u8", loaded?.streamUrl)
+
+        // Update last played URL to s3
+        repo.updateLastPlayedUrl("c1", "https://s3.test/live.m3u8")
+        val updated = repo.getChannelById("c1")
+        assertEquals("https://s3.test/live.m3u8", updated?.lastPlayedUrl)
+        assertEquals("https://s3.test/live.m3u8", updated?.streamUrl)
+        assertEquals(0, updated?.position)
+
+        // Verify persistence across repository restart
+        val restartedRepo = SqliteChannelRepository(
+            context = context,
+            dbName = dbName,
+            ioDispatcher = testDispatcher
+        )
+        val restartedLoaded = restartedRepo.getChannelById("c1")
+        assertEquals(listOf("https://s1.test/live.m3u8", "https://s2.test/live.m3u8", "https://s3.test/live.m3u8"), restartedLoaded?.streamUrls)
+        assertEquals("https://s3.test/live.m3u8", restartedLoaded?.lastPlayedUrl)
+        assertEquals("https://s3.test/live.m3u8", restartedLoaded?.streamUrl)
+    }
+
+    @Test
+    fun sqliteRepository_migratesV2DatabaseWithoutDataLoss() = runTest(testDispatcher) {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "test_migration_v2_to_v3.db"
+
+        // Set up database directly with V2 schema
+        val v2Helper = object : android.database.sqlite.SQLiteOpenHelper(context, dbName, null, 2) {
+            override fun onCreate(db: android.database.sqlite.SQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE channels (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        stream_url TEXT NOT NULL,
+                        logo_url TEXT,
+                        local_logo_path TEXT,
+                        created_at INTEGER NOT NULL,
+                        position INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+            }
+            override fun onUpgrade(db: android.database.sqlite.SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+
+        val db = v2Helper.writableDatabase
+        val cv1 = android.content.ContentValues().apply {
+            put("id", "c1")
+            put("name", "Legacy News")
+            put("stream_url", "https://legacy.test/news.m3u8")
+            put("logo_url", "https://legacy.test/news.png")
+            put("created_at", 1000L)
+            put("position", 0)
+        }
+        val cv2 = android.content.ContentValues().apply {
+            put("id", "c2")
+            put("name", "Legacy Sports")
+            put("stream_url", "https://legacy.test/sports.m3u8")
+            put("created_at", 2000L)
+            put("position", 1)
+        }
+        db.insert("channels", null, cv1)
+        db.insert("channels", null, cv2)
+        v2Helper.close()
+
+        // Open database using SqliteChannelRepository (which runs V3 migration)
+        val v3Repo = SqliteChannelRepository(
+            context = context,
+            dbName = dbName,
+            ioDispatcher = testDispatcher
+        )
+
+        val channels = v3Repo.getAllChannels().first()
+        assertEquals(2, channels.size)
+
+        val c1 = channels.first { it.id == "c1" }
+        assertEquals("Legacy News", c1.name)
+        assertEquals("https://legacy.test/news.m3u8", c1.streamUrl)
+        assertEquals(listOf("https://legacy.test/news.m3u8"), c1.streamUrls)
+        assertNull(c1.lastPlayedUrl)
+        assertEquals("https://legacy.test/news.png", c1.logoUrl)
+        assertEquals(0, c1.position)
+
+        val c2 = channels.first { it.id == "c2" }
+        assertEquals("Legacy Sports", c2.name)
+        assertEquals("https://legacy.test/sports.m3u8", c2.streamUrl)
+        assertEquals(listOf("https://legacy.test/sports.m3u8"), c2.streamUrls)
+        assertNull(c2.lastPlayedUrl)
+        assertEquals(1, c2.position)
+    }
 }
 
