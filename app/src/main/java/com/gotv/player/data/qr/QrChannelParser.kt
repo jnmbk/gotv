@@ -38,14 +38,14 @@ object QrChannelParser {
             else -> RawFields(name = null, streamUrl = payload, logoUrl = null)
         } ?: return QrParseResult.Invalid("The QR code does not contain valid channel data")
 
-        val streamUrl = fields.streamUrl?.trim().orEmpty()
-        val logoUrl = fields.logoUrl?.trim()?.ifEmpty { null }
+        val streamUrl = ChannelValidator.normalizeUrl(fields.streamUrl.orEmpty())
+        val logoUrl = ChannelValidator.normalizeOptionalUrl(fields.logoUrl)
         val name = fields.name?.trim().orEmpty().ifEmpty { deriveName(streamUrl) }
 
         val validation = ChannelValidator.validate(name.ifEmpty { "Channel" }, streamUrl, logoUrl)
         return when {
             validation.streamUrlError != null ->
-                QrParseResult.Invalid("The QR code does not contain a valid M3U8 stream link")
+                QrParseResult.Invalid("The QR code does not contain a valid stream link")
             validation.logoUrlError != null ->
                 QrParseResult.Invalid("The QR code contains an invalid logo URL")
             else -> QrParseResult.Success(name = name, streamUrl = streamUrl, logoUrl = logoUrl)
