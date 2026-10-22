@@ -21,7 +21,10 @@ data class ChannelGridUiState(
     val qrScanTarget: QrScanTarget? = null,
     val qrError: String? = null,
     val deletingChannel: Channel? = null,
-    val logoReloadVersions: Map<String, Int> = emptyMap()
+    val logoReloadVersions: Map<String, Int> = emptyMap(),
+    val isImportConfirmDialogOpen: Boolean = false,
+    val pendingImportChannels: List<Channel> = emptyList(),
+    val userFeedbackMessage: String? = null
 ) {
     val streamUrlInput: String
         get() = streamUrlsInput.firstOrNull().orEmpty()

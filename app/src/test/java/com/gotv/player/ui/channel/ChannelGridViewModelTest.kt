@@ -665,4 +665,141 @@ class ChannelGridViewModelTest {
             state.streamUrlsInput
         )
     }
+
+    @Test
+    fun onImportFileContent_validJson_opensConfirmationDialogWithPendingChannels() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        val validJson = """
+            {
+              "version": 1,
+              "channels": [
+                {
+                  "name": "Sky News",
+                  "streamUrls": ["https://sky.com/live.m3u8"]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        viewModel.onImportFileContent(validJson)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isImportConfirmDialogOpen)
+        assertEquals(1, state.pendingImportChannels.size)
+        assertEquals("Sky News", state.pendingImportChannels[0].name)
+        assertNull(state.userFeedbackMessage)
+    }
+
+    @Test
+    fun onImportFileContent_invalidOrNoChannels_setsFeedbackMessageWithoutDialog() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onImportFileContent("{bad json}")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isImportConfirmDialogOpen)
+        assertTrue(state.pendingImportChannels.isEmpty())
+        assertNotNull(state.userFeedbackMessage)
+
+        viewModel.onFeedbackMessageDismissed()
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.userFeedbackMessage)
+    }
+
+    @Test
+    fun onConfirmImport_replacesChannelsAndSetsSuccessMessage() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        repository.addChannel(Channel(name = "Existing Channel", streamUrl = "https://existing.com/live.m3u8"))
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.channels.size)
+
+        val importJson = """
+            {
+              "version": 1,
+              "channels": [
+                {
+                  "name": "Imported 1",
+                  "streamUrls": ["https://imp1.com/live.m3u8"]
+                },
+                {
+                  "name": "Imported 2",
+                  "streamUrls": ["https://imp2.com/live.m3u8"]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        viewModel.onImportFileContent(importJson)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isImportConfirmDialogOpen)
+
+        viewModel.onConfirmImport()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isImportConfirmDialogOpen)
+        assertEquals(2, state.channels.size)
+        assertEquals("Imported 1", state.channels[0].name)
+        assertEquals("Imported 2", state.channels[1].name)
+        assertEquals("Successfully imported 2 channels", state.userFeedbackMessage)
+    }
+
+    @Test
+    fun onDismissImportConfirmDialog_clearsPendingChannelsWithoutReplacing() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        repository.addChannel(Channel(name = "Original", streamUrl = "https://orig.com/live.m3u8"))
+        advanceUntilIdle()
+
+        val importJson = """
+            {
+              "version": 1,
+              "channels": [
+                {
+                  "name": "Should Not Import",
+                  "streamUrls": ["https://no.com/live.m3u8"]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        viewModel.onImportFileContent(importJson)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isImportConfirmDialogOpen)
+
+        viewModel.onDismissImportConfirmDialog()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isImportConfirmDialogOpen)
+        assertTrue(state.pendingImportChannels.isEmpty())
+        assertEquals(1, state.channels.size)
+        assertEquals("Original", state.channels[0].name)
+    }
+
+    @Test
+    fun onExportChannelsJson_returnsSerializedCurrentChannels() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        repository.addChannel(Channel(name = "Export 1", streamUrl = "https://export1.com/live.m3u8"))
+        advanceUntilIdle()
+
+        val exportedJson = viewModel.onExportChannelsJson()
+        val parsed = com.gotv.player.data.backup.ChannelJsonSerializer.importChannels(exportedJson)
+        assertTrue(parsed is com.gotv.player.data.backup.ChannelImportResult.Success)
+        val channels = (parsed as com.gotv.player.data.backup.ChannelImportResult.Success).channels
+        assertEquals(1, channels.size)
+        assertEquals("Export 1", channels[0].name)
+    }
+
+    @Test
+    fun onExportComplete_setsFeedbackMessage() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onExportComplete(true)
+        advanceUntilIdle()
+        assertEquals("Channels exported successfully", viewModel.uiState.value.userFeedbackMessage)
+
+        viewModel.onExportComplete(false, "Write failed")
+        advanceUntilIdle()
+        assertEquals("Write failed", viewModel.uiState.value.userFeedbackMessage)
+    }
 }

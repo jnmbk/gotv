@@ -3,6 +3,8 @@ package com.gotv.player.ui.channel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.gotv.player.data.backup.ChannelImportResult
+import com.gotv.player.data.backup.ChannelJsonSerializer
 import com.gotv.player.data.model.Channel
 import com.gotv.player.data.model.ChannelValidator
 import com.gotv.player.data.repository.ChannelRepository
@@ -47,7 +49,10 @@ class ChannelGridViewModel(
             qrScanTarget = dialog.qrScanTarget,
             qrError = dialog.qrError,
             deletingChannel = dialog.deletingChannel,
-            logoReloadVersions = logoVersions
+            logoReloadVersions = logoVersions,
+            isImportConfirmDialogOpen = dialog.isImportConfirmDialogOpen,
+            pendingImportChannels = dialog.pendingImportChannels,
+            userFeedbackMessage = dialog.userFeedbackMessage
         )
     }.stateIn(
         scope = viewModelScope,
@@ -392,6 +397,75 @@ class ChannelGridViewModel(
         _dialogState.value = _dialogState.value.copy(selectedChannel = null)
     }
 
+    fun onImportFileContent(content: String) {
+        when (val result = ChannelJsonSerializer.importChannels(content)) {
+            is ChannelImportResult.Success -> {
+                _dialogState.value = _dialogState.value.copy(
+                    pendingImportChannels = result.channels,
+                    isImportConfirmDialogOpen = true
+                )
+            }
+            is ChannelImportResult.Failure -> {
+                _dialogState.value = _dialogState.value.copy(
+                    userFeedbackMessage = result.reason
+                )
+            }
+        }
+    }
+
+    fun onConfirmImport() {
+        val channelsToImport = _dialogState.value.pendingImportChannels
+        if (channelsToImport.isEmpty()) return
+
+        _dialogState.value = _dialogState.value.copy(
+            isImportConfirmDialogOpen = false,
+            pendingImportChannels = emptyList()
+        )
+
+        viewModelScope.launch {
+            repository.replaceAllChannels(channelsToImport)
+            val count = channelsToImport.size
+            val feedback = if (count == 1) "Successfully imported 1 channel" else "Successfully imported $count channels"
+            _dialogState.value = _dialogState.value.copy(userFeedbackMessage = feedback)
+
+            if (logoStorage != null) {
+                channelsToImport.forEach { channel ->
+                    if (!channel.logoUrl.isNullOrEmpty()) {
+                        val cachedPath = logoStorage.downloadAndCacheLogo(channel.id, channel.logoUrl)
+                        if (cachedPath != null) {
+                            repository.updateChannel(channel.copy(localLogoPath = cachedPath))
+                            incrementLogoVersion(channel.id)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun onDismissImportConfirmDialog() {
+        _dialogState.value = _dialogState.value.copy(
+            isImportConfirmDialogOpen = false,
+            pendingImportChannels = emptyList()
+        )
+    }
+
+    fun onExportChannelsJson(): String {
+        return ChannelJsonSerializer.exportChannels(uiState.value.channels)
+    }
+
+    fun onExportComplete(success: Boolean, errorMessage: String? = null) {
+        val feedback = if (success) {
+            "Channels exported successfully"
+        } else {
+            errorMessage ?: "Failed to export channels"
+        }
+        _dialogState.value = _dialogState.value.copy(userFeedbackMessage = feedback)
+    }
+
+    fun onFeedbackMessageDismissed() {
+        _dialogState.value = _dialogState.value.copy(userFeedbackMessage = null)
+    }
+
     private data class DialogState(
         val isOpen: Boolean = false,
         val editingChannel: Channel? = null,
@@ -405,7 +479,10 @@ class ChannelGridViewModel(
         val isQrScannerOpen: Boolean = false,
         val qrScanTarget: QrScanTarget? = null,
         val qrError: String? = null,
-        val deletingChannel: Channel? = null
+        val deletingChannel: Channel? = null,
+        val isImportConfirmDialogOpen: Boolean = false,
+        val pendingImportChannels: List<Channel> = emptyList(),
+        val userFeedbackMessage: String? = null
     )
 
     class Factory(
