@@ -30,6 +30,8 @@ class FakePlayerEngine(
     var playCount: Int = 0
         private set
 
+    val playedUrls = mutableListOf<String>()
+
     var stopCount: Int = 0
         private set
 
@@ -39,15 +41,20 @@ class FakePlayerEngine(
     /** When true, [play] simulates an unreachable stream by entering ERROR instead of PLAYING. */
     var failPlays: Boolean = false
 
+    /** Optional predicate to selectively fail specific URLs during [play]. */
+    var shouldFailUrl: ((String) -> Boolean)? = null
+
     override val player: Player? = null
 
     override fun play(streamUrl: String) {
         currentStreamUrl = streamUrl
+        playedUrls.add(streamUrl)
         playCount++
         _isStopped = false
         _isReleased = false
+        val isError = shouldFailUrl?.invoke(streamUrl) ?: failPlays
         _playbackState.value =
-            if (failPlays) PlaybackState(PlaybackStatus.ERROR, "Stream unreachable")
+            if (isError) PlaybackState(PlaybackStatus.ERROR, "Stream unreachable")
             else PlaybackState(PlaybackStatus.PLAYING)
     }
 

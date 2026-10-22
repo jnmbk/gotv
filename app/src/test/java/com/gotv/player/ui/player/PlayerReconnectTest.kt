@@ -153,4 +153,108 @@ class PlayerReconnectTest {
         assertEquals(plays, engine.playCount)
         assertEquals(ReconnectPhase.NONE, vm.uiState.value.reconnectPhase)
     }
+
+    @Test
+    fun initialization_usesLastPlayedUrl_whenValid() = runTest {
+        val multiChannel = Channel(
+            id = "c-multi",
+            name = "Sports",
+            streamUrls = listOf("https://s1.test", "https://s2.test", "https://s3.test"),
+            lastPlayedUrl = "https://s2.test"
+        )
+        val vm = PlayerViewModel(multiChannel, engine, network, policy)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.hasFailed)
+        assertEquals("https://s2.test", engine.currentStreamUrl)
+        assertEquals(listOf("https://s2.test"), engine.playedUrls)
+    }
+
+    @Test
+    fun initialization_fallsBackToFirstUrl_whenLastPlayedUrlInvalidOrNull() = runTest {
+        val multiChannel = Channel(
+            id = "c-multi",
+            name = "Sports",
+            streamUrls = listOf("https://s1.test", "https://s2.test"),
+            lastPlayedUrl = "https://nonexistent.test"
+        )
+        val vm = PlayerViewModel(multiChannel, engine, network, policy)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.hasFailed)
+        assertEquals("https://s1.test", engine.currentStreamUrl)
+        assertEquals(listOf("https://s1.test"), engine.playedUrls)
+    }
+
+    @Test
+    fun playbackError_cyclesThroughBackupStreamUrls_andPersistsWorkingUrl() = runTest {
+        val repo = com.gotv.player.data.repository.InMemoryChannelRepository()
+        val multiChannel = Channel(
+            id = "c-multi",
+            name = "Sports",
+            streamUrls = listOf("https://s1.test", "https://s2.test", "https://s3.test")
+        )
+        repo.addChannel(multiChannel)
+
+        // Engine plays s1 initially
+        val vm = PlayerViewModel(multiChannel, engine, network, policy, channelRepository = repo)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("https://s1.test", engine.currentStreamUrl)
+
+        // Now s1 encounters error, s2 will fail, s3 will succeed
+        engine.shouldFailUrl = { url -> url == "https://s1.test" || url == "https://s2.test" }
+        engine.updatePlaybackState(PlaybackState(PlaybackStatus.ERROR, "stream broke"))
+        dispatcher.scheduler.runCurrent()
+        assertEquals(ReconnectPhase.RECONNECTING, vm.uiState.value.reconnectPhase)
+
+        // Advance through reconnection
+        dispatcher.scheduler.advanceUntilIdle()
+
+        // Should have cycled: s1 -> s2 (failed) -> s3 (succeeded)
+        assertEquals(listOf("https://s1.test", "https://s2.test", "https://s3.test"), engine.playedUrls)
+        assertEquals("https://s3.test", engine.currentStreamUrl)
+        assertEquals(PlaybackStatus.PLAYING, engine.playbackState.value.status)
+        assertEquals(ReconnectPhase.NONE, vm.uiState.value.reconnectPhase)
+
+        // Successfully playing backup persists lastPlayedUrl in repo
+        val saved = repo.getChannelById("c-multi")
+        assertEquals("https://s3.test", saved?.lastPlayedUrl)
+    }
+
+    @Test
+    fun playbackError_allBackupUrlsFail_entersFailedState_andRetryRestartsCycle() = runTest {
+        val repo = com.gotv.player.data.repository.InMemoryChannelRepository()
+        val multiChannel = Channel(
+            id = "c-multi",
+            name = "Sports",
+            streamUrls = listOf("https://s1.test", "https://s2.test")
+        )
+        repo.addChannel(multiChannel)
+
+        val vm = PlayerViewModel(multiChannel, engine, network, policy, channelRepository = repo)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("https://s1.test", engine.currentStreamUrl)
+
+        // Both s1 and s2 will fail
+        engine.failPlays = true
+        engine.updatePlaybackState(PlaybackState(PlaybackStatus.ERROR, "stream broke"))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        // s1 was initial, s2 was tried as backup URL, both failed
+        assertEquals(listOf("https://s1.test", "https://s2.test"), engine.playedUrls)
+        assertTrue(vm.uiState.value.hasFailed)
+
+        // User taps retry: retry starts cycle again, with s1 succeeding this time
+        engine.failPlays = false
+        vm.retry()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.hasFailed)
+        assertEquals(PlaybackStatus.PLAYING, engine.playbackState.value.status)
+        assertEquals("https://s1.test", engine.currentStreamUrl)
+        assertEquals(
+            listOf("https://s1.test", "https://s2.test", "https://s1.test"),
+            engine.playedUrls
+        )
+    }
 }

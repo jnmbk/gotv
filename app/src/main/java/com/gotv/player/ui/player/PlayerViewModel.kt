@@ -113,6 +113,7 @@ class PlayerViewModel(
     private fun startReconnect(immediate: Boolean) {
         if (stoppedInBackground || playerEngine.isReleased) return
         if (reconnectJob?.isActive == true) return
+        if (!immediate && reconnectPhase.value != ReconnectPhase.NONE) return
         reconnectPhase.value = ReconnectPhase.RECONNECTING
         reconnectJob = viewModelScope.launch {
             val totalAttempts = if (candidateUrls.size > 1) {
