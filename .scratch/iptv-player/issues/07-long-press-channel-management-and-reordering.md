@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Channel Persistence & Grid Dashboard, 02: Local Logo Caching & Downsampled Rendering, 05: Shrunken Viewport & In-Player Channel Switching Sidebar, 06: QR Code Channel Import (Camera & File)
 
-**Status:** open
+**Status:** done
 
 ## Design Decisions
 
@@ -30,12 +30,12 @@
 
 ## Acceptance Criteria
 
-- [ ] Long-pressing a channel tile immediately opens a context menu with "Edit Channel", "Redownload Logo" (when `logoUrl` is present), and "Delete Channel"
-- [ ] Starting a drag while holding a channel tile dismisses the context menu and reorders the channel in the grid
-- [ ] Reordered channel positions persist in `ChannelRepository` across app restarts and are reflected in both the main grid and the in-player sidebar
-- [ ] Newly added channels appear at the top of the channel order (position 0)
-- [ ] Selecting "Edit Channel" opens the form dialog pre-populated with the channel's details (supporting QR scan/import) and updates the channel and its cached logo according to logo URL changes
-- [ ] Selecting "Redownload Logo" forces a fresh download and overwrites the cached logo, refreshing the tile UI on success and preserving the existing cached logo on failure
-- [ ] Selecting "Delete Channel" shows a confirmation dialog and, upon confirmation, removes the channel and deletes its local cached logo file
-- [ ] Unit and end-to-end Compose UI tests verify editing, logo redownloading, deletion with confirmation, and drag-and-drop reordering
+- [x] Long-pressing a channel tile immediately opens a context menu with "Edit Channel", "Redownload Logo" (when `logoUrl` is present), and "Delete Channel"
+- [x] Starting a drag while holding a channel tile dismisses the context menu and reorders the channel in the grid
+- [x] Reordered channel positions persist in `ChannelRepository` across app restarts and are reflected in both the main grid and the in-player sidebar
+- [x] Newly added channels appear at the top of the channel order (position 0)
+- [x] Selecting "Edit Channel" opens the form dialog pre-populated with the channel's details (supporting QR scan/import) and updates the channel and its cached logo according to logo URL changes
+- [x] Selecting "Redownload Logo" forces a fresh download and overwrites the cached logo, refreshing the tile UI on success and preserving the existing cached logo on failure
+- [x] Selecting "Delete Channel" shows a confirmation dialog and, upon confirmation, removes the channel and deletes its local cached logo file
+- [x] Unit and end-to-end Compose UI tests verify editing, logo redownloading, deletion with confirmation, and drag-and-drop reordering
 
