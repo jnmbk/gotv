@@ -139,4 +139,88 @@ class FileLogoStorageTest {
         assertNull(result)
         assertFalse(storage.hasCachedLogo("corrupt-chan"))
     }
+
+    @Test
+    fun downloadAndCacheLogo_withForceRefresh_redownloadsAndOverwritesCachedFile() = runTest {
+        val firstBytes = createTestBitmapBytes(200, 200)
+        val secondBytes = createTestBitmapBytes(100, 100)
+        var downloadCallCount = 0
+        val fakeDownloader = ImageDownloader {
+            downloadCallCount++
+            if (downloadCallCount == 1) firstBytes else secondBytes
+        }
+
+        val storage = FileLogoStorage(
+            baseDir = logoDir,
+            imageDownloader = fakeDownloader
+        )
+
+        val firstPath = storage.downloadAndCacheLogo("chan-force", "https://example.com/logo.png")
+        assertNotNull(firstPath)
+        assertEquals(1, downloadCallCount)
+
+        // Force refresh should download again and overwrite the file
+        val secondPath = storage.downloadAndCacheLogo(
+            channelId = "chan-force",
+            logoUrl = "https://example.com/logo.png",
+            forceRefresh = true
+        )
+        assertNotNull(secondPath)
+        assertEquals(2, downloadCallCount)
+        assertEquals(firstPath, secondPath)
+
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(secondPath!!, options)
+        assertEquals(100, options.outWidth)
+        assertEquals(100, options.outHeight)
+    }
+
+    @Test
+    fun downloadAndCacheLogo_withForceRefresh_preservesExistingCacheWhenDownloadFails() = runTest {
+        val validBytes = createTestBitmapBytes(150, 150)
+        var shouldFail = false
+        val fakeDownloader = ImageDownloader {
+            if (shouldFail) null else validBytes
+        }
+
+        val storage = FileLogoStorage(
+            baseDir = logoDir,
+            imageDownloader = fakeDownloader
+        )
+
+        val initialPath = storage.downloadAndCacheLogo("chan-preserve", "https://example.com/logo.png")
+        assertNotNull(initialPath)
+        assertTrue(storage.hasCachedLogo("chan-preserve"))
+
+        // Subsequent forced refresh fails
+        shouldFail = true
+        val failedResult = storage.downloadAndCacheLogo(
+            channelId = "chan-preserve",
+            logoUrl = "https://example.com/logo.png",
+            forceRefresh = true
+        )
+        assertNull(failedResult)
+
+        // Existing cached logo file on disk must be preserved
+        assertTrue(storage.hasCachedLogo("chan-preserve"))
+        val existingFile = storage.getCachedLogoFile("chan-preserve")
+        assertNotNull(existingFile)
+        assertTrue(existingFile!!.exists())
+    }
+
+    @Test
+    fun deleteCachedLogo_removesFileFromDisk() = runTest {
+        val validBytes = createTestBitmapBytes(120, 120)
+        val storage = FileLogoStorage(
+            baseDir = logoDir,
+            imageDownloader = { validBytes }
+        )
+
+        storage.downloadAndCacheLogo("chan-delete", "https://example.com/logo.png")
+        assertTrue(storage.hasCachedLogo("chan-delete"))
+
+        storage.deleteCachedLogo("chan-delete")
+        assertFalse(storage.hasCachedLogo("chan-delete"))
+        assertNull(storage.getCachedLogoFile("chan-delete"))
+    }
 }

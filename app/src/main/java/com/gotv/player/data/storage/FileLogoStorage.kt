@@ -34,7 +34,11 @@ class FileLogoStorage(
         ioDispatcher = ioDispatcher
     )
 
-    override suspend fun downloadAndCacheLogo(channelId: String, logoUrl: String): String? =
+    override suspend fun downloadAndCacheLogo(
+        channelId: String,
+        logoUrl: String,
+        forceRefresh: Boolean
+    ): String? =
         withContext(ioDispatcher) {
             runCatching {
                 if (!baseDir.exists()) {
@@ -42,7 +46,7 @@ class FileLogoStorage(
                 }
 
                 val targetFile = File(baseDir, "$channelId.png")
-                if (targetFile.exists() && targetFile.length() > 0) {
+                if (!forceRefresh && targetFile.exists() && targetFile.length() > 0) {
                     return@withContext targetFile.absolutePath
                 }
 
@@ -91,15 +95,35 @@ class FileLogoStorage(
                     decoded
                 }
 
-                // 5. Persist to local disk storage
-                FileOutputStream(targetFile).use { out ->
-                    finalBitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
+                // 5. Persist to local disk storage via atomic temp file so existing cache is preserved on write failure
+                val tempFile = File(baseDir, "$channelId.tmp")
+                try {
+                    FileOutputStream(tempFile).use { out ->
+                        finalBitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
+                    }
+                } finally {
+                    finalBitmap.recycle()
                 }
 
-                finalBitmap.recycle()
-                targetFile.absolutePath
+                if (tempFile.exists() && tempFile.length() > 0) {
+                    if (!tempFile.renameTo(targetFile)) {
+                        tempFile.copyTo(targetFile, overwrite = true)
+                        tempFile.delete()
+                    }
+                    targetFile.absolutePath
+                } else {
+                    tempFile.delete()
+                    null
+                }
             }.getOrNull()
         }
+
+    override fun deleteCachedLogo(channelId: String) {
+        val file = File(baseDir, "$channelId.png")
+        if (file.exists()) {
+            file.delete()
+        }
+    }
 
     override fun hasCachedLogo(channelId: String): Boolean {
         val file = File(baseDir, "$channelId.png")
