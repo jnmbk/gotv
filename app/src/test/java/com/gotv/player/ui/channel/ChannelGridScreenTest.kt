@@ -713,5 +713,160 @@ class ChannelGridScreenTest {
         composeTestRule.onNodeWithTag("stream_url_input_1").assertTextContains("https://scanned.example.com/backup.m3u8")
         composeTestRule.onNodeWithTag("stream_url_input").assertTextContains("https://primary.example.com/live.m3u8")
     }
+
+    @Test
+    fun overflowMenu_displaysImportAndExportOptions() {
+        val repository = InMemoryChannelRepository()
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("channel_overflow_menu_button").assertIsDisplayed().performClick()
+        composeTestRule.onNodeWithTag("menu_import_channels").assertIsDisplayed().assertTextContains("Import channels")
+        composeTestRule.onNodeWithTag("menu_export_channels").assertIsDisplayed().assertTextContains("Export channels")
+    }
+
+    @Test
+    fun overflowMenu_clickingImportAndExport_invokesCallbacks() {
+        val repository = InMemoryChannelRepository()
+        val viewModel = ChannelGridViewModel(repository)
+        var importClicked = false
+        var exportClicked = false
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(
+                    viewModel = viewModel,
+                    onImportRequested = { importClicked = true },
+                    onExportRequested = { exportClicked = true }
+                )
+            }
+        }
+
+        // Click Import
+        composeTestRule.onNodeWithTag("channel_overflow_menu_button").performClick()
+        composeTestRule.onNodeWithTag("menu_import_channels").performClick()
+        assertTrue(importClicked)
+
+        // Click Export
+        composeTestRule.onNodeWithTag("channel_overflow_menu_button").performClick()
+        composeTestRule.onNodeWithTag("menu_export_channels").performClick()
+        assertTrue(exportClicked)
+    }
+
+    @Test
+    fun importFlow_showsConfirmationDialog_cancelLeavesOriginalChannels() {
+        val repository = InMemoryChannelRepository(
+            listOf(Channel(id = "c1", name = "Original Channel", streamUrl = "https://orig.com/live.m3u8"))
+        )
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        val json = """
+            {
+              "version": 1,
+              "channels": [
+                {
+                  "name": "New Channel",
+                  "streamUrls": ["https://new.com/live.m3u8"]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        viewModel.onImportFileContent(json)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("import_confirm_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithText("This will replace all current channels. Proceed?").assertIsDisplayed()
+
+        // Cancel
+        composeTestRule.onNodeWithTag("cancel_import_button").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("import_confirm_dialog").assertDoesNotExist()
+        val channels = runBlocking { repository.getAllChannels().first() }
+        assertEquals(1, channels.size)
+        assertEquals("Original Channel", channels[0].name)
+    }
+
+    @Test
+    fun importFlow_confirmReplacement_replacesChannelsAndDisplaysFeedbackMessage() {
+        val repository = InMemoryChannelRepository(
+            listOf(Channel(id = "c1", name = "Original Channel", streamUrl = "https://orig.com/live.m3u8"))
+        )
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        val json = """
+            {
+              "version": 1,
+              "channels": [
+                {
+                  "name": "Imported 1",
+                  "streamUrls": ["https://imp1.com/live.m3u8"]
+                },
+                {
+                  "name": "Imported 2",
+                  "streamUrls": ["https://imp2.com/live.m3u8"]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        viewModel.onImportFileContent(json)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("import_confirm_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("confirm_import_button").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("import_confirm_dialog").assertDoesNotExist()
+
+        val channels = runBlocking { repository.getAllChannels().first() }
+        assertEquals(2, channels.size)
+        assertEquals("Imported 1", channels[0].name)
+        assertEquals("Imported 2", channels[1].name)
+
+        composeTestRule.onNodeWithText("Successfully imported 2 channels").assertIsDisplayed()
+    }
+
+    @Test
+    fun importFlow_invalidOrEmptyJson_showsErrorMessageWithoutConfirmationDialog() {
+        val repository = InMemoryChannelRepository(
+            listOf(Channel(id = "c1", name = "Original Channel", streamUrl = "https://orig.com/live.m3u8"))
+        )
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        viewModel.onImportFileContent("{not valid json}")
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("import_confirm_dialog").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Failed to parse JSON file").assertIsDisplayed()
+
+        val channels = runBlocking { repository.getAllChannels().first() }
+        assertEquals(1, channels.size)
+        assertEquals("Original Channel", channels[0].name)
+    }
 }
 

@@ -1,5 +1,8 @@
 package com.gotv.player.ui.channel
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
@@ -13,19 +16,25 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +46,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntRect
@@ -55,10 +65,14 @@ fun ChannelGridScreen(
     viewModel: ChannelGridViewModel,
     onChannelSelected: (Channel) -> Unit = {},
     modifier: Modifier = Modifier,
-    qrScanner: QrScannerProvider? = null
+    qrScanner: QrScannerProvider? = null,
+    onImportRequested: (() -> Unit)? = null,
+    onExportRequested: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var dragOrder by remember { mutableStateOf<List<Channel>?>(null) }
     var contextMenuChannelId by remember { mutableStateOf<String?>(null) }
@@ -66,6 +80,49 @@ fun ChannelGridScreen(
     var draggedItemInitialOffset by remember { mutableStateOf(Offset.Zero) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var hasDragged by remember { mutableStateOf(false) }
+    var overflowMenuExpanded by remember { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val content = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    stream.bufferedReader().readText()
+                }.orEmpty()
+                viewModel.onImportFileContent(content)
+            } catch (_: Exception) {
+                viewModel.onImportFileContent("")
+            }
+        }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val json = viewModel.onExportChannelsJson()
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.bufferedWriter().use { writer ->
+                        writer.write(json)
+                    }
+                }
+                viewModel.onExportComplete(true)
+            } catch (e: Exception) {
+                viewModel.onExportComplete(false, e.localizedMessage)
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.userFeedbackMessage) {
+        val message = uiState.userFeedbackMessage ?: return@LaunchedEffect
+        try {
+            snackbarHostState.showSnackbar(message)
+        } finally {
+            viewModel.onFeedbackMessageDismissed()
+        }
+    }
 
     val displayChannels = dragOrder ?: uiState.channels
     val currentChannelsState by rememberUpdatedState(displayChannels)
@@ -75,6 +132,12 @@ fun ChannelGridScreen(
         modifier = modifier
             .fillMaxSize()
             .testTag("channel_grid_screen"),
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.testTag("user_feedback_snackbar")
+            )
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -91,6 +154,45 @@ fun ChannelGridScreen(
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Add Channel"
+                        )
+                    }
+                    IconButton(
+                        onClick = { overflowMenuExpanded = true },
+                        modifier = Modifier.testTag("channel_overflow_menu_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More options"
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = overflowMenuExpanded,
+                        onDismissRequest = { overflowMenuExpanded = false },
+                        modifier = Modifier.testTag("channel_overflow_dropdown_menu")
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Import channels") },
+                            onClick = {
+                                overflowMenuExpanded = false
+                                if (onImportRequested != null) {
+                                    onImportRequested()
+                                } else {
+                                    importLauncher.launch(arrayOf("application/json", "*/*"))
+                                }
+                            },
+                            modifier = Modifier.testTag("menu_import_channels")
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Export channels") },
+                            onClick = {
+                                overflowMenuExpanded = false
+                                if (onExportRequested != null) {
+                                    onExportRequested()
+                                } else {
+                                    exportLauncher.launch("gotv_channels.json")
+                                }
+                            },
+                            modifier = Modifier.testTag("menu_export_channels")
                         )
                     }
                 },
@@ -273,6 +375,35 @@ fun ChannelGridScreen(
                     TextButton(
                         onClick = viewModel::onDismissDeleteDialog,
                         modifier = Modifier.testTag("cancel_delete_channel_button")
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (uiState.isImportConfirmDialogOpen) {
+            AlertDialog(
+                modifier = Modifier.testTag("import_confirm_dialog"),
+                onDismissRequest = viewModel::onDismissImportConfirmDialog,
+                title = {
+                    Text(text = "Replace all channels?")
+                },
+                text = {
+                    Text(text = "This will replace all current channels. Proceed?")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = viewModel::onConfirmImport,
+                        modifier = Modifier.testTag("confirm_import_button")
+                    ) {
+                        Text("Proceed")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = viewModel::onDismissImportConfirmDialog,
+                        modifier = Modifier.testTag("cancel_import_button")
                     ) {
                         Text("Cancel")
                     }
