@@ -37,10 +37,10 @@ class ChannelGridViewModel(
             isAddDialogOpen = dialog.isOpen,
             editingChannel = dialog.editingChannel,
             nameInput = dialog.name,
-            streamUrlInput = dialog.streamUrl,
+            streamUrlsInput = dialog.streamUrls,
             logoUrlInput = dialog.logoUrl,
             nameError = dialog.nameError,
-            streamUrlError = dialog.streamUrlError,
+            streamUrlsErrors = dialog.streamUrlsErrors,
             logoUrlError = dialog.logoUrlError,
             selectedChannel = dialog.selectedChannel,
             isQrScannerOpen = dialog.isQrScannerOpen,
@@ -60,10 +60,10 @@ class ChannelGridViewModel(
             isOpen = true,
             editingChannel = null,
             name = "",
-            streamUrl = ChannelValidator.DEFAULT_URL_PREFIX,
+            streamUrls = listOf(ChannelValidator.DEFAULT_URL_PREFIX),
             logoUrl = ChannelValidator.DEFAULT_URL_PREFIX,
             nameError = null,
-            streamUrlError = null,
+            streamUrlsErrors = emptyList(),
             logoUrlError = null,
             isQrScannerOpen = false,
             qrScanTarget = null,
@@ -72,14 +72,21 @@ class ChannelGridViewModel(
     }
 
     fun onOpenEditDialog(channel: Channel) {
+        val initialStreamUrls = if (channel.streamUrls.isNotEmpty()) {
+            channel.streamUrls
+        } else if (channel.streamUrl.isNotEmpty()) {
+            listOf(channel.streamUrl)
+        } else {
+            listOf(ChannelValidator.DEFAULT_URL_PREFIX)
+        }
         _dialogState.value = _dialogState.value.copy(
             isOpen = true,
             editingChannel = channel,
             name = channel.name,
-            streamUrl = channel.streamUrl,
+            streamUrls = initialStreamUrls,
             logoUrl = channel.logoUrl ?: ChannelValidator.DEFAULT_URL_PREFIX,
             nameError = null,
-            streamUrlError = null,
+            streamUrlsErrors = emptyList(),
             logoUrlError = null,
             isQrScannerOpen = false,
             qrScanTarget = null,
@@ -92,10 +99,10 @@ class ChannelGridViewModel(
             isOpen = false,
             editingChannel = null,
             name = "",
-            streamUrl = "",
+            streamUrls = emptyList(),
             logoUrl = "",
             nameError = null,
-            streamUrlError = null,
+            streamUrlsErrors = emptyList(),
             logoUrlError = null,
             isQrScannerOpen = false,
             qrScanTarget = null,
@@ -134,12 +141,29 @@ class ChannelGridViewModel(
         val rawText = payload.trim()
         val target = current.qrScanTarget ?: QrScanTarget.StreamUrl()
         _dialogState.value = when (target) {
-            is QrScanTarget.StreamUrl -> current.copy(
-                isQrScannerOpen = false,
-                qrScanTarget = null,
-                streamUrl = ChannelValidator.stripDuplicateScheme(rawText),
-                streamUrlError = null
-            )
+            is QrScanTarget.StreamUrl -> {
+                val index = target.index
+                val cleaned = ChannelValidator.stripDuplicateScheme(rawText)
+                val updatedUrls = current.streamUrls.toMutableList()
+                if (index in updatedUrls.indices) {
+                    updatedUrls[index] = cleaned
+                } else {
+                    updatedUrls.add(cleaned)
+                }
+                val updatedErrors = if (current.streamUrlsErrors.size == current.streamUrls.size) {
+                    current.streamUrlsErrors.toMutableList().apply {
+                        if (index in indices) this[index] = null
+                    }
+                } else {
+                    emptyList()
+                }
+                current.copy(
+                    isQrScannerOpen = false,
+                    qrScanTarget = null,
+                    streamUrls = updatedUrls,
+                    streamUrlsErrors = updatedErrors
+                )
+            }
             is QrScanTarget.LogoUrl -> current.copy(
                 isQrScannerOpen = false,
                 qrScanTarget = null,
@@ -153,11 +177,49 @@ class ChannelGridViewModel(
         _dialogState.value = _dialogState.value.copy(name = name, nameError = null)
     }
 
-    fun onStreamUrlChanged(streamUrl: String) {
-        _dialogState.value = _dialogState.value.copy(
-            streamUrl = ChannelValidator.stripDuplicateScheme(streamUrl),
-            streamUrlError = null
+    fun onAddStreamUrlField() {
+        val current = _dialogState.value
+        _dialogState.value = current.copy(
+            streamUrls = current.streamUrls + ChannelValidator.DEFAULT_URL_PREFIX,
+            streamUrlsErrors = if (current.streamUrlsErrors.isNotEmpty()) current.streamUrlsErrors + null else emptyList()
         )
+    }
+
+    fun onRemoveStreamUrlField(index: Int) {
+        val current = _dialogState.value
+        if (current.streamUrls.size <= 1 || index !in current.streamUrls.indices) {
+            return
+        }
+        val updatedUrls = current.streamUrls.toMutableList().apply { removeAt(index) }
+        val updatedErrors = if (current.streamUrlsErrors.size == current.streamUrls.size) {
+            current.streamUrlsErrors.toMutableList().apply { removeAt(index) }
+        } else {
+            emptyList()
+        }
+        _dialogState.value = current.copy(
+            streamUrls = updatedUrls,
+            streamUrlsErrors = updatedErrors
+        )
+    }
+
+    fun onStreamUrlChanged(index: Int, streamUrl: String) {
+        val current = _dialogState.value
+        if (index !in current.streamUrls.indices) return
+        val updatedUrls = current.streamUrls.toMutableList()
+        updatedUrls[index] = ChannelValidator.stripDuplicateScheme(streamUrl)
+        val updatedErrors = if (current.streamUrlsErrors.size == current.streamUrls.size) {
+            current.streamUrlsErrors.toMutableList().apply { this[index] = null }
+        } else {
+            emptyList()
+        }
+        _dialogState.value = current.copy(
+            streamUrls = updatedUrls,
+            streamUrlsErrors = updatedErrors
+        )
+    }
+
+    fun onStreamUrlChanged(streamUrl: String) {
+        onStreamUrlChanged(0, streamUrl)
     }
 
     fun onLogoUrlChanged(logoUrl: String) {
@@ -171,21 +233,23 @@ class ChannelGridViewModel(
         val current = _dialogState.value
         val validation = ChannelValidator.validate(
             name = current.name,
-            streamUrl = current.streamUrl,
+            streamUrls = current.streamUrls,
             logoUrl = current.logoUrl
         )
 
         if (!validation.isValid) {
             _dialogState.value = current.copy(
                 nameError = validation.nameError,
-                streamUrlError = validation.streamUrlError,
+                streamUrlsErrors = validation.streamUrlsErrors,
                 logoUrlError = validation.logoUrlError
             )
             return false
         }
 
         val trimmedName = current.name.trim()
-        val normalizedStreamUrl = ChannelValidator.normalizeUrl(current.streamUrl)
+        val normalizedStreamUrls = current.streamUrls
+            .map { ChannelValidator.normalizeUrl(it) }
+            .filter { it.isNotEmpty() }
         val normalizedLogoUrl = ChannelValidator.normalizeOptionalUrl(current.logoUrl)
         val existingChannel = current.editingChannel
 
@@ -194,19 +258,12 @@ class ChannelGridViewModel(
         if (existingChannel != null) {
             viewModelScope.launch {
                 val logoChanged = normalizedLogoUrl != existingChannel.logoUrl
-                val updatedStreamUrls = if (existingChannel.streamUrls.size > 1 &&
-                    (existingChannel.streamUrls.firstOrNull() == normalizedStreamUrl || existingChannel.lastPlayedUrl == normalizedStreamUrl)
-                ) {
-                    existingChannel.streamUrls
-                } else {
-                    listOf(normalizedStreamUrl)
-                }
                 val updatedChannel = when {
                     normalizedLogoUrl == null -> {
                         logoStorage?.deleteCachedLogo(existingChannel.id)
                         existingChannel.copy(
                             name = trimmedName,
-                            streamUrls = updatedStreamUrls,
+                            streamUrls = normalizedStreamUrls,
                             logoUrl = null,
                             localLogoPath = null
                         )
@@ -214,7 +271,7 @@ class ChannelGridViewModel(
                     logoChanged -> {
                         val baseUpdated = existingChannel.copy(
                             name = trimmedName,
-                            streamUrls = updatedStreamUrls,
+                            streamUrls = normalizedStreamUrls,
                             logoUrl = normalizedLogoUrl
                         )
                         repository.updateChannel(baseUpdated)
@@ -235,7 +292,7 @@ class ChannelGridViewModel(
                     else -> {
                         val baseUpdated = existingChannel.copy(
                             name = trimmedName,
-                            streamUrls = updatedStreamUrls,
+                            streamUrls = normalizedStreamUrls,
                             logoUrl = normalizedLogoUrl
                         )
                         if (existingChannel.localLogoPath == null && logoStorage != null) {
@@ -266,7 +323,7 @@ class ChannelGridViewModel(
             val initialChannel = Channel(
                 id = channelId,
                 name = trimmedName,
-                streamUrl = normalizedStreamUrl,
+                streamUrls = normalizedStreamUrls,
                 logoUrl = normalizedLogoUrl,
                 localLogoPath = null
             )
@@ -339,10 +396,10 @@ class ChannelGridViewModel(
         val isOpen: Boolean = false,
         val editingChannel: Channel? = null,
         val name: String = "",
-        val streamUrl: String = "",
+        val streamUrls: List<String> = emptyList(),
         val logoUrl: String = "",
         val nameError: String? = null,
-        val streamUrlError: String? = null,
+        val streamUrlsErrors: List<String?> = emptyList(),
         val logoUrlError: String? = null,
         val selectedChannel: Channel? = null,
         val isQrScannerOpen: Boolean = false,

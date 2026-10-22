@@ -11,10 +11,10 @@ data class ChannelGridUiState(
     val isAddDialogOpen: Boolean = false,
     val editingChannel: Channel? = null,
     val nameInput: String = "",
-    val streamUrlInput: String = "",
+    val streamUrlsInput: List<String> = emptyList(),
     val logoUrlInput: String = "",
     val nameError: String? = null,
-    val streamUrlError: String? = null,
+    val streamUrlsErrors: List<String?> = emptyList(),
     val logoUrlError: String? = null,
     val selectedChannel: Channel? = null,
     val isQrScannerOpen: Boolean = false,
@@ -23,6 +23,12 @@ data class ChannelGridUiState(
     val deletingChannel: Channel? = null,
     val logoReloadVersions: Map<String, Int> = emptyMap()
 ) {
+    val streamUrlInput: String
+        get() = streamUrlsInput.firstOrNull().orEmpty()
+
+    val streamUrlError: String?
+        get() = streamUrlsErrors.firstOrNull { it != null }
+
     val isEmpty: Boolean
         get() = !isLoading && channels.isEmpty()
 

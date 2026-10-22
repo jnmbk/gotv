@@ -474,4 +474,195 @@ class ChannelGridViewModelTest {
 
         assertEquals(listOf("c1", "c3", "c2"), viewModel.uiState.value.channels.map { it.id })
     }
+
+    @Test
+    fun onOpenAddDialog_initializesWithSinglePrefilledStreamUrl() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("https://"), state.streamUrlsInput)
+        assertEquals("https://", state.streamUrlInput)
+        assertTrue(state.streamUrlsErrors.isEmpty())
+    }
+
+    @Test
+    fun onAddStreamUrlField_appendsPrefilledStreamUrlField() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onAddStreamUrlField()
+        viewModel.onAddStreamUrlField()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("https://", "https://", "https://"), state.streamUrlsInput)
+    }
+
+    @Test
+    fun onRemoveStreamUrlField_removesFieldAtIndex_whenMultipleFieldsExist() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onStreamUrlChanged(0, "https://stream1.m3u8")
+        viewModel.onAddStreamUrlField()
+        viewModel.onStreamUrlChanged(1, "https://stream2.m3u8")
+        viewModel.onAddStreamUrlField()
+        viewModel.onStreamUrlChanged(2, "https://stream3.m3u8")
+        advanceUntilIdle()
+
+        // Remove middle field
+        viewModel.onRemoveStreamUrlField(1)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("https://stream1.m3u8", "https://stream3.m3u8"), state.streamUrlsInput)
+    }
+
+    @Test
+    fun onRemoveStreamUrlField_doesNotRemoveWhenOnlyOneFieldRemains() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onStreamUrlChanged(0, "https://only-stream.m3u8")
+        advanceUntilIdle()
+
+        viewModel.onRemoveStreamUrlField(0)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("https://only-stream.m3u8"), state.streamUrlsInput)
+    }
+
+    @Test
+    fun onStreamUrlChanged_updatesSpecificIndex() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onAddStreamUrlField()
+        viewModel.onStreamUrlChanged(1, "https://backup.example.com/live.m3u8")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("https://", state.streamUrlsInput[0])
+        assertEquals("https://backup.example.com/live.m3u8", state.streamUrlsInput[1])
+    }
+
+    @Test
+    fun onOpenEditDialog_prefillsAllStreamUrlsFromChannel() = runTest(testDispatcher) {
+        val channel = Channel(
+            id = "c1",
+            name = "Multi Stream News",
+            streamUrls = listOf(
+                "https://primary.example.com/live.m3u8",
+                "https://backup1.example.com/live.m3u8",
+                "https://backup2.example.com/live.m3u8"
+            ),
+            logoUrl = "https://example.com/logo.png"
+        )
+        repository.addChannel(channel)
+        advanceUntilIdle()
+
+        viewModel.onOpenEditDialog(channel)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isAddDialogOpen)
+        assertTrue(state.isEditMode)
+        assertEquals("Multi Stream News", state.nameInput)
+        assertEquals(channel.streamUrls, state.streamUrlsInput)
+        assertEquals(channel.streamUrls.first(), state.streamUrlInput)
+        assertEquals("https://example.com/logo.png", state.logoUrlInput)
+    }
+
+    @Test
+    fun onSaveChannel_withMultipleValidStreamUrls_persistsListToRepository() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onNameChanged("Multi Channel")
+        viewModel.onStreamUrlChanged(0, "example.com/primary.m3u8")
+        viewModel.onAddStreamUrlField()
+        viewModel.onStreamUrlChanged(1, "example.com/backup.m3u8")
+
+        val saved = viewModel.onSaveChannel()
+        assertTrue(saved)
+        advanceUntilIdle()
+
+        val channels = viewModel.uiState.value.channels
+        assertEquals(1, channels.size)
+        val savedChannel = channels[0]
+        assertEquals("Multi Channel", savedChannel.name)
+        assertEquals(
+            listOf("https://example.com/primary.m3u8", "https://example.com/backup.m3u8"),
+            savedChannel.streamUrls
+        )
+    }
+
+    @Test
+    fun onSaveChannel_withInvalidSecondaryStreamUrl_setsErrorsAndDoesNotSave() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onNameChanged("Valid Name")
+        viewModel.onStreamUrlChanged(0, "https://example.com/live.m3u8")
+        viewModel.onAddStreamUrlField()
+        viewModel.onStreamUrlChanged(1, "invalid-url")
+
+        val saved = viewModel.onSaveChannel()
+        assertFalse(saved)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isAddDialogOpen)
+        assertEquals(listOf(null, "Please enter a valid stream URL"), state.streamUrlsErrors)
+        assertEquals("Please enter a valid stream URL", state.streamUrlError)
+        assertTrue(state.channels.isEmpty())
+    }
+
+    @Test
+    fun onSaveChannel_inEditMode_updatesMultipleStreamUrlsInRepository() = runTest(testDispatcher) {
+        val channel = Channel(
+            id = "c1",
+            name = "Initial Name",
+            streamUrls = listOf("https://initial.example.com/live.m3u8")
+        )
+        repository.addChannel(channel)
+        advanceUntilIdle()
+
+        viewModel.onOpenEditDialog(channel)
+        viewModel.onNameChanged("Updated Name")
+        viewModel.onAddStreamUrlField()
+        viewModel.onStreamUrlChanged(1, "https://new-backup.example.com/live.m3u8")
+
+        val saved = viewModel.onSaveChannel()
+        assertTrue(saved)
+        advanceUntilIdle()
+
+        val updated = repository.getChannelById("c1")
+        assertNotNull(updated)
+        assertEquals("Updated Name", updated!!.name)
+        assertEquals(
+            listOf("https://initial.example.com/live.m3u8", "https://new-backup.example.com/live.m3u8"),
+            updated.streamUrls
+        )
+    }
+
+    @Test
+    fun onQrPayloadScanned_targetingSecondaryStreamUrl_updatesTargetedField() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onStreamUrlChanged(0, "https://first.example.com/live.m3u8")
+        viewModel.onAddStreamUrlField()
+        advanceUntilIdle()
+
+        viewModel.onOpenQrScanner(QrScanTarget.StreamUrl(index = 1))
+        advanceUntilIdle()
+
+        viewModel.onQrPayloadScanned("https://scanned-backup.example.com/live.m3u8")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isQrScannerOpen)
+        assertNull(state.qrScanTarget)
+        assertEquals(
+            listOf("https://first.example.com/live.m3u8", "https://scanned-backup.example.com/live.m3u8"),
+            state.streamUrlsInput
+        )
+    }
 }
