@@ -18,6 +18,19 @@ import kotlinx.coroutines.flow.asStateFlow
  * - Back buffering and DVR seek cache disabled.
  * - Codec instances and hardware decoders immediately freed upon stop or release.
  */
+/**
+ * Maps an ExoPlayer state to a [PlaybackState]. ExoPlayer drops to STATE_IDLE after a fatal
+ * error, so an existing ERROR is kept on IDLE until playback is restarted (BUFFERING/READY).
+ */
+internal fun reducePlaybackState(current: PlaybackState, exoPlayerState: Int): PlaybackState =
+    when (exoPlayerState) {
+        Player.STATE_BUFFERING -> PlaybackState(PlaybackStatus.BUFFERING)
+        Player.STATE_READY -> PlaybackState(PlaybackStatus.PLAYING)
+        else ->
+            if (current.status == PlaybackStatus.ERROR) current
+            else PlaybackState(PlaybackStatus.IDLE)
+    }
+
 class Media3PlayerEngine(
     context: Context,
     private val exoPlayer: ExoPlayer = createLowRamExoPlayer(context)
@@ -38,14 +51,7 @@ class Media3PlayerEngine(
 
     private val listener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
-            val status = when (playbackState) {
-                Player.STATE_BUFFERING -> PlaybackStatus.BUFFERING
-                Player.STATE_READY -> PlaybackStatus.PLAYING
-                Player.STATE_ENDED -> PlaybackStatus.IDLE
-                Player.STATE_IDLE -> PlaybackStatus.IDLE
-                else -> PlaybackStatus.IDLE
-            }
-            _playbackState.value = PlaybackState(status = status)
+            _playbackState.value = reducePlaybackState(_playbackState.value, playbackState)
         }
 
         override fun onPlayerError(error: PlaybackException) {
