@@ -40,8 +40,8 @@ class GoTvAppSidebarEndToEndTest {
     fun setUp() {
         val repo = InMemoryChannelRepository()
         runBlocking {
-            repo.addChannel(first)
             repo.addChannel(second)
+            repo.addChannel(first)
         }
         composeTestRule.setContent {
             GoTvTheme {

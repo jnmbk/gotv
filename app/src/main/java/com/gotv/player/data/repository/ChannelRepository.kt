@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
  */
 interface ChannelRepository {
     /**
-     * Observes the list of all saved channels ordered by creation date descending.
+     * Observes the list of all saved channels ordered by their custom position (and creation date descending for ties).
      */
     fun getAllChannels(): Flow<List<Channel>>
 
@@ -18,7 +18,7 @@ interface ChannelRepository {
     suspend fun getChannelById(id: String): Channel?
 
     /**
-     * Persists a new or updated channel.
+     * Persists a new channel at the top of the channel order (position 0).
      */
     suspend fun addChannel(channel: Channel)
 
@@ -31,5 +31,10 @@ interface ChannelRepository {
      * Removes a channel by its identifier.
      */
     suspend fun deleteChannel(id: String)
+
+    /**
+     * Reorders channels according to the provided list of channel identifiers.
+     */
+    suspend fun reorderChannels(orderedChannelIds: List<String>)
 }
 

@@ -56,15 +56,23 @@ class SqliteChannelRepository(
 
     override suspend fun addChannel(channel: Channel) = withContext(ioDispatcher) {
         val db = dbHelper.writableDatabase
-        val values = ContentValues().apply {
-            put(COLUMN_ID, channel.id)
-            put(COLUMN_NAME, channel.name)
-            put(COLUMN_STREAM_URL, channel.streamUrl)
-            put(COLUMN_LOGO_URL, channel.logoUrl)
-            put(COLUMN_LOCAL_LOGO_PATH, channel.localLogoPath)
-            put(COLUMN_CREATED_AT, channel.createdAt)
+        db.beginTransaction()
+        try {
+            db.execSQL("UPDATE $TABLE_NAME SET $COLUMN_POSITION = $COLUMN_POSITION + 1")
+            val values = ContentValues().apply {
+                put(COLUMN_ID, channel.id)
+                put(COLUMN_NAME, channel.name)
+                put(COLUMN_STREAM_URL, channel.streamUrl)
+                put(COLUMN_LOGO_URL, channel.logoUrl)
+                put(COLUMN_LOCAL_LOGO_PATH, channel.localLogoPath)
+                put(COLUMN_CREATED_AT, channel.createdAt)
+                put(COLUMN_POSITION, 0)
+            }
+            db.insertWithOnConflict(TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
-        db.insertWithOnConflict(TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE)
         _channels.value = readAllFromDb()
     }
 
@@ -86,6 +94,23 @@ class SqliteChannelRepository(
         _channels.value = readAllFromDb()
     }
 
+    override suspend fun reorderChannels(orderedChannelIds: List<String>) = withContext(ioDispatcher) {
+        val db = dbHelper.writableDatabase
+        db.beginTransaction()
+        try {
+            orderedChannelIds.forEachIndexed { index, id ->
+                val values = ContentValues().apply {
+                    put(COLUMN_POSITION, index)
+                }
+                db.update(TABLE_NAME, values, "$COLUMN_ID = ?", arrayOf(id))
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        _channels.value = readAllFromDb()
+    }
+
     private fun readAllFromDb(): List<Channel> {
         val db = dbHelper.readableDatabase
         val cursor = db.query(
@@ -95,7 +120,7 @@ class SqliteChannelRepository(
             null,
             null,
             null,
-            "$COLUMN_CREATED_AT DESC"
+            "$COLUMN_POSITION ASC, $COLUMN_CREATED_AT DESC"
         )
         val channels = mutableListOf<Channel>()
         cursor.use {
@@ -113,6 +138,7 @@ class SqliteChannelRepository(
         val logoUrl = if (cursor.isNull(cursor.getColumnIndexOrThrow(COLUMN_LOGO_URL))) null else cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LOGO_URL))
         val localLogoPath = if (cursor.isNull(cursor.getColumnIndexOrThrow(COLUMN_LOCAL_LOGO_PATH))) null else cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LOCAL_LOGO_PATH))
         val createdAt = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_CREATED_AT))
+        val position = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_POSITION))
 
         return Channel(
             id = id,
@@ -120,7 +146,8 @@ class SqliteChannelRepository(
             streamUrl = streamUrl,
             logoUrl = logoUrl,
             localLogoPath = localLogoPath,
-            createdAt = createdAt
+            createdAt = createdAt,
+            position = position
         )
     }
 
@@ -134,20 +161,44 @@ class SqliteChannelRepository(
                     $COLUMN_STREAM_URL TEXT NOT NULL,
                     $COLUMN_LOGO_URL TEXT,
                     $COLUMN_LOCAL_LOGO_PATH TEXT,
-                    $COLUMN_CREATED_AT INTEGER NOT NULL
+                    $COLUMN_CREATED_AT INTEGER NOT NULL,
+                    $COLUMN_POSITION INTEGER NOT NULL DEFAULT 0
                 )
                 """.trimIndent()
             )
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            // Future schema migrations
+            if (oldVersion < 2) {
+                db.execSQL("ALTER TABLE $TABLE_NAME ADD COLUMN $COLUMN_POSITION INTEGER NOT NULL DEFAULT 0")
+                val cursor = db.query(
+                    TABLE_NAME,
+                    arrayOf(COLUMN_ID),
+                    null,
+                    null,
+                    null,
+                    null,
+                    "$COLUMN_CREATED_AT DESC"
+                )
+                val ids = mutableListOf<String>()
+                cursor.use {
+                    while (it.moveToNext()) {
+                        ids.add(it.getString(0))
+                    }
+                }
+                ids.forEachIndexed { index, id ->
+                    val values = ContentValues().apply {
+                        put(COLUMN_POSITION, index)
+                    }
+                    db.update(TABLE_NAME, values, "$COLUMN_ID = ?", arrayOf(id))
+                }
+            }
         }
     }
 
     companion object {
         const val DATABASE_NAME = "gotv_channels.db"
-        const val DATABASE_VERSION = 1
+        const val DATABASE_VERSION = 2
         const val TABLE_NAME = "channels"
 
         const val COLUMN_ID = "id"
@@ -156,6 +207,7 @@ class SqliteChannelRepository(
         const val COLUMN_LOGO_URL = "logo_url"
         const val COLUMN_LOCAL_LOGO_PATH = "local_logo_path"
         const val COLUMN_CREATED_AT = "created_at"
+        const val COLUMN_POSITION = "position"
 
         private val PROJECTION = arrayOf(
             COLUMN_ID,
@@ -163,7 +215,8 @@ class SqliteChannelRepository(
             COLUMN_STREAM_URL,
             COLUMN_LOGO_URL,
             COLUMN_LOCAL_LOGO_PATH,
-            COLUMN_CREATED_AT
+            COLUMN_CREATED_AT,
+            COLUMN_POSITION
         )
     }
 }

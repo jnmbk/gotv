@@ -95,5 +95,72 @@ class ChannelRepositoryTest {
         assertEquals("Sports 1", remaining[0].name)
         assertNull(restartedRepo.getChannelById("c1"))
     }
+
+    @Test
+    fun inMemoryRepository_prependsNewChannels_andReordersChannels() = runTest {
+        val repo = InMemoryChannelRepository()
+        val ch1 = Channel(id = "1", name = "First", streamUrl = "https://test.com/1.m3u8")
+        val ch2 = Channel(id = "2", name = "Second", streamUrl = "https://test.com/2.m3u8")
+        val ch3 = Channel(id = "3", name = "Third", streamUrl = "https://test.com/3.m3u8")
+
+        repo.addChannel(ch1)
+        repo.addChannel(ch2)
+        repo.addChannel(ch3)
+
+        // Newest added is at position 0
+        assertEquals(listOf("3", "2", "1"), repo.getAllChannels().first().map { it.id })
+        assertEquals(listOf(0, 1, 2), repo.getAllChannels().first().map { it.position })
+
+        // Reorder to 1, 3, 2
+        repo.reorderChannels(listOf("1", "3", "2"))
+        val reordered = repo.getAllChannels().first()
+        assertEquals(listOf("1", "3", "2"), reordered.map { it.id })
+        assertEquals(listOf(0, 1, 2), reordered.map { it.position })
+
+        // Adding a 4th channel puts it at position 0 ahead of custom order
+        val ch4 = Channel(id = "4", name = "Fourth", streamUrl = "https://test.com/4.m3u8")
+        repo.addChannel(ch4)
+        assertEquals(listOf("4", "1", "3", "2"), repo.getAllChannels().first().map { it.id })
+    }
+
+    @Test
+    fun sqliteRepository_reordersAndPersistsPositionsAcrossRestarts() = runTest(testDispatcher) {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "test_reorder_channels.db"
+        val repo = SqliteChannelRepository(
+            context = context,
+            dbName = dbName,
+            ioDispatcher = testDispatcher
+        )
+
+        val ch1 = Channel(id = "c1", name = "Alpha", streamUrl = "https://a.com/1.m3u8", createdAt = 1000L)
+        val ch2 = Channel(id = "c2", name = "Beta", streamUrl = "https://a.com/2.m3u8", createdAt = 2000L)
+        val ch3 = Channel(id = "c3", name = "Gamma", streamUrl = "https://a.com/3.m3u8", createdAt = 3000L)
+
+        repo.addChannel(ch1)
+        repo.addChannel(ch2)
+        repo.addChannel(ch3)
+
+        // Newly added channels appear at position 0 (Gamma, Beta, Alpha)
+        assertEquals(listOf("c3", "c2", "c1"), repo.getAllChannels().first().map { it.id })
+
+        // Reorder to Alpha, Gamma, Beta
+        repo.reorderChannels(listOf("c1", "c3", "c2"))
+        assertEquals(listOf("c1", "c3", "c2"), repo.getAllChannels().first().map { it.id })
+        assertEquals(listOf(0, 1, 2), repo.getAllChannels().first().map { it.position })
+
+        // Verify persistence across restart
+        val restartedRepo = SqliteChannelRepository(
+            context = context,
+            dbName = dbName,
+            ioDispatcher = testDispatcher
+        )
+        assertEquals(listOf("c1", "c3", "c2"), restartedRepo.getAllChannels().first().map { it.id })
+
+        // Adding a new channel places it at position 0
+        val ch4 = Channel(id = "c4", name = "Delta", streamUrl = "https://a.com/4.m3u8", createdAt = 4000L)
+        restartedRepo.addChannel(ch4)
+        assertEquals(listOf("c4", "c1", "c3", "c2"), restartedRepo.getAllChannels().first().map { it.id })
+    }
 }
 

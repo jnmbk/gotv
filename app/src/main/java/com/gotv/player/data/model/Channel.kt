@@ -11,6 +11,7 @@ import java.util.UUID
  * @property logoUrl Optional remote URL for the channel logo.
  * @property localLogoPath Optional local file path for cached logo image.
  * @property createdAt Epoch timestamp in milliseconds when the channel was added.
+ * @property position Custom zero-based display order position (lower values appear first).
  */
 data class Channel(
     val id: String = UUID.randomUUID().toString(),
@@ -18,6 +19,7 @@ data class Channel(
     val streamUrl: String,
     val logoUrl: String? = null,
     val localLogoPath: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val position: Int = 0
 )
 

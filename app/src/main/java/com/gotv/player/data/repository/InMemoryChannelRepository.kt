@@ -12,7 +12,15 @@ class InMemoryChannelRepository(
     initialChannels: List<Channel> = emptyList()
 ) : ChannelRepository {
 
-    private val _channels = MutableStateFlow(initialChannels)
+    private val _channels = MutableStateFlow(
+        initialChannels.mapIndexed { index, ch ->
+            if (ch.position == 0 && index > 0 && initialChannels.all { it.position == 0 }) {
+                ch.copy(position = index)
+            } else {
+                ch
+            }
+        }
+    )
 
     override fun getAllChannels(): Flow<List<Channel>> = _channels.asStateFlow()
 
@@ -21,15 +29,29 @@ class InMemoryChannelRepository(
     }
 
     override suspend fun addChannel(channel: Channel) {
-        _channels.value = listOf(channel) + _channels.value.filter { it.id != channel.id }
+        val updatedList = listOf(channel) + _channels.value.filter { it.id != channel.id }
+        _channels.value = updatedList.mapIndexed { index, ch -> ch.copy(position = index) }
     }
 
     override suspend fun updateChannel(channel: Channel) {
-        _channels.value = _channels.value.map { if (it.id == channel.id) channel else it }
+        _channels.value = _channels.value.map {
+            if (it.id == channel.id) channel.copy(position = it.position) else it
+        }
     }
 
     override suspend fun deleteChannel(id: String) {
-        _channels.value = _channels.value.filter { it.id != id }
+        _channels.value = _channels.value
+            .filter { it.id != id }
+            .mapIndexed { index, ch -> ch.copy(position = index) }
+    }
+
+    override suspend fun reorderChannels(orderedChannelIds: List<String>) {
+        val currentById = _channels.value.associateBy { it.id }
+        val reordered = orderedChannelIds.mapNotNull { currentById[it] }
+        val remaining = _channels.value.filter { it.id !in orderedChannelIds.toSet() }
+        _channels.value = (reordered + remaining).mapIndexed { index, ch ->
+            ch.copy(position = index)
+        }
     }
 }
 
