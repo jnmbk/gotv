@@ -41,5 +41,10 @@ interface ChannelRepository {
      * Updates the last successfully played stream URL for the channel without affecting order or positions.
      */
     suspend fun updateLastPlayedUrl(channelId: String, streamUrl: String)
+
+    /**
+     * Replaces all existing channels with the provided channel list, preserving their sequence.
+     */
+    suspend fun replaceAllChannels(channels: List<Channel>)
 }
 

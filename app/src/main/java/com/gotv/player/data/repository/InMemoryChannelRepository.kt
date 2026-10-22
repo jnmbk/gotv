@@ -59,5 +59,11 @@ class InMemoryChannelRepository(
             if (it.id == channelId) it.copy(lastPlayedUrl = streamUrl) else it
         }
     }
+
+    override suspend fun replaceAllChannels(channels: List<Channel>) {
+        _channels.value = channels.mapIndexed { index, ch ->
+            ch.copy(position = index)
+        }
+    }
 }
 

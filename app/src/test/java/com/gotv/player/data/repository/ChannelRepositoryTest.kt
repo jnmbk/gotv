@@ -276,5 +276,58 @@ class ChannelRepositoryTest {
         assertNull(c2.lastPlayedUrl)
         assertEquals(1, c2.position)
     }
+
+    @Test
+    fun inMemoryRepository_replaceAllChannels_replacesAllAndMaintainsOrder() = runTest {
+        val repo = InMemoryChannelRepository(
+            listOf(
+                Channel(id = "old1", name = "Old 1", streamUrl = "https://old1.m3u8"),
+                Channel(id = "old2", name = "Old 2", streamUrl = "https://old2.m3u8")
+            )
+        )
+        assertEquals(2, repo.getAllChannels().first().size)
+
+        val newChannels = listOf(
+            Channel(id = "new1", name = "New 1", streamUrls = listOf("https://new1.m3u8")),
+            Channel(id = "new2", name = "New 2", streamUrls = listOf("https://new2.m3u8", "https://new2-backup.m3u8"))
+        )
+        repo.replaceAllChannels(newChannels)
+
+        val replaced = repo.getAllChannels().first()
+        assertEquals(2, replaced.size)
+        assertEquals("new1", replaced[0].id)
+        assertEquals(0, replaced[0].position)
+        assertEquals("new2", replaced[1].id)
+        assertEquals(1, replaced[1].position)
+        assertEquals(listOf("https://new2.m3u8", "https://new2-backup.m3u8"), replaced[1].streamUrls)
+    }
+
+    @Test
+    fun sqliteRepository_replaceAllChannels_replacesAllAndMaintainsOrder() = runTest(testDispatcher) {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val repo = SqliteChannelRepository(
+            context = context,
+            dbName = "test_replace_channels.db",
+            ioDispatcher = testDispatcher
+        )
+
+        repo.addChannel(Channel(id = "old1", name = "Old 1", streamUrl = "https://old1.m3u8"))
+        repo.addChannel(Channel(id = "old2", name = "Old 2", streamUrl = "https://old2.m3u8"))
+        assertEquals(2, repo.getAllChannels().first().size)
+
+        val newChannels = listOf(
+            Channel(id = "new1", name = "New 1", streamUrls = listOf("https://new1.m3u8")),
+            Channel(id = "new2", name = "New 2", streamUrls = listOf("https://new2.m3u8", "https://new2-backup.m3u8"))
+        )
+        repo.replaceAllChannels(newChannels)
+
+        val replaced = repo.getAllChannels().first()
+        assertEquals(2, replaced.size)
+        assertEquals("new1", replaced[0].id)
+        assertEquals(0, replaced[0].position)
+        assertEquals("new2", replaced[1].id)
+        assertEquals(1, replaced[1].position)
+        assertEquals(listOf("https://new2.m3u8", "https://new2-backup.m3u8"), replaced[1].streamUrls)
+    }
 }
 

@@ -130,6 +130,35 @@ class SqliteChannelRepository(
         _channels.value = readAllFromDb()
     }
 
+    override suspend fun replaceAllChannels(channels: List<Channel>) = withContext(ioDispatcher) {
+        val db = dbHelper.writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete(TABLE_NAME, null, null)
+            channels.forEachIndexed { index, channel ->
+                val urls = channel.streamUrls.ifEmpty {
+                    if (channel.streamUrl.isNotEmpty()) listOf(channel.streamUrl) else emptyList()
+                }
+                val values = ContentValues().apply {
+                    put(COLUMN_ID, channel.id)
+                    put(COLUMN_NAME, channel.name)
+                    put(COLUMN_STREAM_URL, channel.streamUrl)
+                    put(COLUMN_STREAM_URLS, encodeStreamUrls(urls))
+                    put(COLUMN_LAST_PLAYED_URL, channel.lastPlayedUrl)
+                    put(COLUMN_LOGO_URL, channel.logoUrl)
+                    put(COLUMN_LOCAL_LOGO_PATH, channel.localLogoPath)
+                    put(COLUMN_CREATED_AT, channel.createdAt)
+                    put(COLUMN_POSITION, index)
+                }
+                db.insertWithOnConflict(TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        _channels.value = readAllFromDb()
+    }
+
     private fun readAllFromDb(): List<Channel> {
         val db = dbHelper.readableDatabase
         val cursor = db.query(
