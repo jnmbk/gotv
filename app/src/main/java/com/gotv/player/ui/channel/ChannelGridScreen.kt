@@ -285,6 +285,8 @@ fun ChannelGridScreen(
                 uiState = uiState,
                 onNameChange = viewModel::onNameChanged,
                 onStreamUrlChange = viewModel::onStreamUrlChanged,
+                onAddStreamUrl = viewModel::onAddStreamUrlField,
+                onRemoveStreamUrl = viewModel::onRemoveStreamUrlField,
                 onLogoUrlChange = viewModel::onLogoUrlChanged,
                 onDismiss = viewModel::onDismissAddDialog,
                 onConfirm = { viewModel.onSaveChannel() },
