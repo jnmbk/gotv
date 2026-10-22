@@ -4,7 +4,7 @@
 
 **Blocked by:** 06: QR Code Channel Import (Camera & File)
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Design Decisions
 
@@ -21,9 +21,9 @@
 
 ## Acceptance Criteria
 
-- [ ] Dialog-level QR buttons and image picker are removed from the channel dialog
-- [ ] Each stream URL input field and logo URL input field has an inline QR scan action
-- [ ] Tapping an input field's QR action opens the camera scanner directly
-- [ ] Scanning a QR code populates only the targeted input field with the scanned text/URL
-- [ ] Dismissing the scanner leaves existing input field contents unchanged
-- [ ] Unit and Compose UI tests verify targeted per-input QR scanning and camera scanner dismiss flows
+- [x] Dialog-level QR buttons and image picker are removed from the channel dialog
+- [x] Each stream URL input field and logo URL input field has an inline QR scan action
+- [x] Tapping an input field's QR action opens the camera scanner directly
+- [x] Scanning a QR code populates only the targeted input field with the scanned text/URL
+- [x] Dismissing the scanner leaves existing input field contents unchanged
+- [x] Unit and Compose UI tests verify targeted per-input QR scanning and camera scanner dismiss flows
