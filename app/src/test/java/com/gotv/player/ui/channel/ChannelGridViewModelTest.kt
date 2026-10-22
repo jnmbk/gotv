@@ -2,6 +2,7 @@ package com.gotv.player.ui.channel
 
 import com.gotv.player.data.model.Channel
 import com.gotv.player.data.repository.InMemoryChannelRepository
+import com.gotv.player.data.storage.InMemoryLogoStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -94,6 +95,55 @@ class ChannelGridViewModelTest {
         assertEquals("BBC One", state.channels[0].name)
         assertEquals("https://streams.example.com/bbc1.m3u8", state.channels[0].streamUrl)
         assertFalse(state.isEmpty)
+    }
+
+    @Test
+    fun saveChannel_withValidLogoUrl_downloadsAndUpdatesLocalLogoPath() = runTest(testDispatcher) {
+        val logoStorage = InMemoryLogoStorage()
+        val customViewModel = ChannelGridViewModel(repository, logoStorage)
+
+        advanceUntilIdle()
+        customViewModel.onOpenAddDialog()
+        customViewModel.onNameChanged("CNN")
+        customViewModel.onStreamUrlChanged("https://streams.example.com/cnn.m3u8")
+        customViewModel.onLogoUrlChanged("https://example.com/cnn-logo.png")
+
+        val saved = customViewModel.onSaveChannel()
+        assertTrue(saved)
+        advanceUntilIdle()
+
+        val state = customViewModel.uiState.value
+        assertEquals(1, state.channels.size)
+        val channel = state.channels[0]
+        assertEquals("CNN", channel.name)
+        assertEquals("https://example.com/cnn-logo.png", channel.logoUrl)
+        assertNotNull(channel.localLogoPath)
+        assertTrue(channel.localLogoPath!!.endsWith(".png"))
+        assertEquals(1, logoStorage.downloadCalls)
+    }
+
+    @Test
+    fun saveChannel_withFailingLogoUrl_leavesLocalLogoPathNullGracefully() = runTest(testDispatcher) {
+        val failingLogoStorage = InMemoryLogoStorage(shouldFail = true)
+        val customViewModel = ChannelGridViewModel(repository, failingLogoStorage)
+
+        advanceUntilIdle()
+        customViewModel.onOpenAddDialog()
+        customViewModel.onNameChanged("Discovery")
+        customViewModel.onStreamUrlChanged("https://streams.example.com/disc.m3u8")
+        customViewModel.onLogoUrlChanged("https://example.com/offline-logo.png")
+
+        val saved = customViewModel.onSaveChannel()
+        assertTrue(saved)
+        advanceUntilIdle()
+
+        val state = customViewModel.uiState.value
+        assertEquals(1, state.channels.size)
+        val channel = state.channels[0]
+        assertEquals("Discovery", channel.name)
+        assertEquals("https://example.com/offline-logo.png", channel.logoUrl)
+        assertNull(channel.localLogoPath)
+        assertEquals(1, failingLogoStorage.downloadCalls)
     }
 
     @Test

@@ -6,18 +6,21 @@ import androidx.lifecycle.viewModelScope
 import com.gotv.player.data.model.Channel
 import com.gotv.player.data.model.ChannelValidator
 import com.gotv.player.data.repository.ChannelRepository
+import com.gotv.player.data.storage.LogoStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 /**
  * ViewModel responsible for the channel grid dashboard and channel creation dialog.
  */
 class ChannelGridViewModel(
-    private val repository: ChannelRepository
+    private val repository: ChannelRepository,
+    private val logoStorage: LogoStorage? = null
 ) : ViewModel() {
 
     private val _dialogState = MutableStateFlow(DialogState())
@@ -81,15 +84,29 @@ class ChannelGridViewModel(
             return false
         }
 
+        val trimmedName = current.name.trim()
+        val trimmedStreamUrl = current.streamUrl.trim()
+        val trimmedLogoUrl = current.logoUrl.trim().ifEmpty { null }
+        val channelId = UUID.randomUUID().toString()
+
+        onDismissAddDialog()
+
         viewModelScope.launch {
-            repository.addChannel(
-                Channel(
-                    name = current.name.trim(),
-                    streamUrl = current.streamUrl.trim(),
-                    logoUrl = current.logoUrl.trim().ifEmpty { null }
-                )
+            val initialChannel = Channel(
+                id = channelId,
+                name = trimmedName,
+                streamUrl = trimmedStreamUrl,
+                logoUrl = trimmedLogoUrl,
+                localLogoPath = null
             )
-            onDismissAddDialog()
+            repository.addChannel(initialChannel)
+
+            if (trimmedLogoUrl != null && logoStorage != null) {
+                val cachedPath = logoStorage.downloadAndCacheLogo(channelId, trimmedLogoUrl)
+                if (cachedPath != null) {
+                    repository.updateChannel(initialChannel.copy(localLogoPath = cachedPath))
+                }
+            }
         }
         return true
     }
@@ -113,10 +130,13 @@ class ChannelGridViewModel(
         val selectedChannel: Channel? = null
     )
 
-    class Factory(private val repository: ChannelRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val repository: ChannelRepository,
+        private val logoStorage: LogoStorage? = null
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ChannelGridViewModel(repository) as T
+            return ChannelGridViewModel(repository, logoStorage) as T
         }
     }
 }

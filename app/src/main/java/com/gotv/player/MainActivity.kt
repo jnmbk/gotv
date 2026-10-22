@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import com.gotv.player.data.repository.SqliteChannelRepository
+import com.gotv.player.data.storage.FileLogoStorage
 import com.gotv.player.ui.channel.ChannelGridScreen
 import com.gotv.player.ui.channel.ChannelGridViewModel
 import com.gotv.player.ui.theme.GoTvTheme
@@ -15,8 +16,12 @@ class MainActivity : ComponentActivity() {
         SqliteChannelRepository(applicationContext)
     }
 
+    private val logoStorage by lazy {
+        FileLogoStorage(applicationContext)
+    }
+
     private val channelViewModel by viewModels<ChannelGridViewModel> {
-        ChannelGridViewModel.Factory(channelRepository)
+        ChannelGridViewModel.Factory(channelRepository, logoStorage)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
