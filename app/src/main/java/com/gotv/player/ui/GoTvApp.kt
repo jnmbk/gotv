@@ -47,7 +47,7 @@ fun GoTvApp(
         )
     } else {
         val session = remember(currentChannel.id) {
-            PlayerSession(currentChannel, playerEngineFactory, networkMonitor)
+            PlayerSession(currentChannel, playerEngineFactory, networkMonitor, channelRepository)
         }
 
         PlayerScreen(
@@ -70,10 +70,11 @@ fun GoTvApp(
 private class PlayerSession(
     channel: Channel,
     engineFactory: () -> PlayerEngine,
-    networkMonitor: NetworkMonitor
+    networkMonitor: NetworkMonitor,
+    channelRepository: ChannelRepository? = null
 ) : RememberObserver {
     val engine: PlayerEngine = engineFactory()
-    val viewModel = PlayerViewModel(channel, engine, networkMonitor)
+    val viewModel = PlayerViewModel(channel, engine, networkMonitor, channelRepository = channelRepository)
 
     override fun onRemembered() = Unit
     override fun onForgotten() = viewModel.release()

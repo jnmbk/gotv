@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.gotv.player.data.model.Channel
+import com.gotv.player.data.repository.ChannelRepository
 import com.gotv.player.network.AlwaysOnlineNetworkMonitor
 import com.gotv.player.network.NetworkMonitor
 import com.gotv.player.player.PlaybackStatus
@@ -32,8 +33,13 @@ class PlayerViewModel(
     val channel: Channel,
     private val playerEngine: PlayerEngine,
     private val networkMonitor: NetworkMonitor = AlwaysOnlineNetworkMonitor,
-    private val reconnectPolicy: ReconnectPolicy = ReconnectPolicy()
+    private val reconnectPolicy: ReconnectPolicy = ReconnectPolicy(),
+    private val channelRepository: ChannelRepository? = null
 ) : ViewModel() {
+
+    val candidateUrls: List<String> = resolveCandidateUrls(channel)
+    private var currentCandidateIndex: Int = 0
+    private var persistedWorkingUrl: String? = channel.lastPlayedUrl
 
     private val reconnectPhase = MutableStateFlow(ReconnectPhase.NONE)
     private var reconnectJob: Job? = null
@@ -58,10 +64,20 @@ class PlayerViewModel(
     )
 
     init {
-        playerEngine.play(channel.streamUrl)
+        val initialUrl = candidateUrls.firstOrNull().orEmpty().ifEmpty { channel.streamUrl }
+        if (initialUrl.isNotEmpty()) {
+            playerEngine.play(initialUrl)
+        }
         viewModelScope.launch {
             playerEngine.playbackState.collect { state ->
-                if (state.status == PlaybackStatus.ERROR) startReconnect(immediate = false)
+                if (state.status == PlaybackStatus.ERROR) {
+                    startReconnect(immediate = false)
+                } else if (state.status == PlaybackStatus.PLAYING) {
+                    val activeUrl = candidateUrls.getOrNull(currentCandidateIndex) ?: channel.streamUrl
+                    if (activeUrl.isNotEmpty()) {
+                        onWorkingStreamDiscovered(activeUrl)
+                    }
+                }
             }
         }
         viewModelScope.launch {
@@ -74,6 +90,15 @@ class PlayerViewModel(
     /** Manually restarts recovery after a permanent failure. */
     fun retry() {
         startReconnect(immediate = true)
+    }
+
+    private fun onWorkingStreamDiscovered(url: String) {
+        if (persistedWorkingUrl != url) {
+            persistedWorkingUrl = url
+            viewModelScope.launch {
+                channelRepository?.updateLastPlayedUrl(channel.id, url)
+            }
+        }
     }
 
     private fun onNetworkRestored() {
@@ -90,8 +115,14 @@ class PlayerViewModel(
         if (reconnectJob?.isActive == true) return
         reconnectPhase.value = ReconnectPhase.RECONNECTING
         reconnectJob = viewModelScope.launch {
+            val totalAttempts = if (candidateUrls.size > 1) {
+                if (immediate) candidateUrls.size else (candidateUrls.size - 1)
+            } else {
+                reconnectPolicy.maxAttempts
+            }
+
             var attempt = 0
-            while (attempt < reconnectPolicy.maxAttempts) {
+            while (attempt < totalAttempts) {
                 if (!(immediate && attempt == 0)) {
                     delay(reconnectPolicy.baseDelayMs shl attempt)
                 }
@@ -101,15 +132,29 @@ class PlayerViewModel(
                     }
                     if (back == null) break
                 }
+
+                val targetIndex = if (candidateUrls.size > 1) {
+                    if (immediate) {
+                        (currentCandidateIndex + attempt) % candidateUrls.size
+                    } else {
+                        (currentCandidateIndex + 1 + attempt) % candidateUrls.size
+                    }
+                } else {
+                    0
+                }
+
+                val targetUrl = candidateUrls.getOrNull(targetIndex) ?: channel.streamUrl
                 attempt++
-                playerEngine.play(channel.streamUrl)
+                playerEngine.play(targetUrl)
                 val outcome = withTimeoutOrNull(reconnectPolicy.attemptTimeoutMs) {
                     playerEngine.playbackState.first {
                         it.status == PlaybackStatus.PLAYING || it.status == PlaybackStatus.ERROR
                     }
                 }
                 if (outcome?.status == PlaybackStatus.PLAYING) {
+                    currentCandidateIndex = targetIndex
                     reconnectPhase.value = ReconnectPhase.NONE
+                    onWorkingStreamDiscovered(targetUrl)
                     return@launch
                 }
             }
@@ -136,7 +181,8 @@ class PlayerViewModel(
     fun onForeground() {
         if (!stoppedInBackground || playerEngine.isReleased) return
         stoppedInBackground = false
-        playerEngine.play(channel.streamUrl)
+        val activeUrl = candidateUrls.getOrNull(currentCandidateIndex) ?: channel.streamUrl
+        playerEngine.play(activeUrl)
     }
 
     fun release() {
@@ -148,14 +194,34 @@ class PlayerViewModel(
         playerEngine.release()
     }
 
+    companion object {
+        fun resolveCandidateUrls(channel: Channel): List<String> {
+            val rawUrls = if (channel.streamUrls.isNotEmpty()) {
+                channel.streamUrls
+            } else if (channel.streamUrl.isNotEmpty()) {
+                listOf(channel.streamUrl)
+            } else {
+                emptyList()
+            }
+            val distinctUrls = rawUrls.filter { it.isNotBlank() }.distinct()
+            val lastPlayed = channel.lastPlayedUrl
+            return if (!lastPlayed.isNullOrBlank() && distinctUrls.contains(lastPlayed)) {
+                listOf(lastPlayed) + distinctUrls.filter { it != lastPlayed }
+            } else {
+                distinctUrls
+            }
+        }
+    }
+
     class Factory(
         private val channel: Channel,
         private val playerEngine: PlayerEngine,
-        private val networkMonitor: NetworkMonitor = AlwaysOnlineNetworkMonitor
+        private val networkMonitor: NetworkMonitor = AlwaysOnlineNetworkMonitor,
+        private val channelRepository: ChannelRepository? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return PlayerViewModel(channel, playerEngine, networkMonitor) as T
+            return PlayerViewModel(channel, playerEngine, networkMonitor, channelRepository = channelRepository) as T
         }
     }
 }
