@@ -20,6 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupProperties
 import com.gotv.player.data.model.Channel
 import java.io.File
 
@@ -42,46 +45,91 @@ import java.io.File
 fun ChannelTile(
     channel: Channel,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    logoVersion: Int = 0,
+    isContextMenuOpen: Boolean = false,
+    onDismissContextMenu: () -> Unit = {},
+    onEditChannel: () -> Unit = {},
+    onRedownloadLogo: () -> Unit = {},
+    onDeleteChannel: () -> Unit = {}
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .testTag("channel_tile_${channel.id}"),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
+    Box(modifier = modifier) {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick)
+                .testTag("channel_tile_${channel.id}"),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            ChannelLogo(
-                channel = channel,
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-            )
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                ChannelLogo(
+                    channel = channel,
+                    logoVersion = logoVersion,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                )
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-            Text(
-                text = channel.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("channel_name_${channel.id}")
-            )
+                Text(
+                    text = channel.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("channel_name_${channel.id}")
+                )
+            }
+        }
+
+        if (isContextMenuOpen) {
+            DropdownMenu(
+                expanded = true,
+                onDismissRequest = onDismissContextMenu,
+                properties = PopupProperties(focusable = false),
+                modifier = Modifier.testTag("channel_context_menu_${channel.id}")
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Edit Channel") },
+                    onClick = {
+                        onDismissContextMenu()
+                        onEditChannel()
+                    },
+                    modifier = Modifier.testTag("context_menu_edit")
+                )
+                if (!channel.logoUrl.isNullOrBlank()) {
+                    DropdownMenuItem(
+                        text = { Text("Redownload Logo") },
+                        onClick = {
+                            onDismissContextMenu()
+                            onRedownloadLogo()
+                        },
+                        modifier = Modifier.testTag("context_menu_redownload_logo")
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text("Delete Channel") },
+                    onClick = {
+                        onDismissContextMenu()
+                        onDeleteChannel()
+                    },
+                    modifier = Modifier.testTag("context_menu_delete")
+                )
+            }
         }
     }
 }
@@ -89,10 +137,11 @@ fun ChannelTile(
 @Composable
 fun ChannelLogo(
     channel: Channel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    logoVersion: Int = 0
 ) {
     val localPath = channel.localLogoPath
-    val bitmap = remember(localPath) {
+    val bitmap = remember(localPath, logoVersion) {
         if (!localPath.isNullOrBlank()) {
             loadLocalBitmap(localPath)
         } else {

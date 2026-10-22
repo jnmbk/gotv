@@ -41,7 +41,7 @@ fun AddChannelDialog(
         modifier = modifier.testTag("add_channel_dialog"),
         onDismissRequest = onDismiss,
         title = {
-            Text(text = "Add Channel")
+            Text(text = if (uiState.isEditMode) "Edit Channel" else "Add Channel")
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -130,7 +130,7 @@ fun AddChannelDialog(
                 onClick = onConfirm,
                 modifier = Modifier.testTag("save_channel_button")
             ) {
-                Text("Add")
+                Text(if (uiState.isEditMode) "Save" else "Add")
             }
         },
         dismissButton = {
