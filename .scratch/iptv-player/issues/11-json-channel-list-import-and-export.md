@@ -4,7 +4,7 @@
 
 **Blocked by:** 08: Multiple Backup Stream Links & Failover Playback
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Design Decisions
 
@@ -46,10 +46,10 @@
 
 ## Acceptance Criteria
 
-- [ ] Top bar provides an overflow menu with "Import channels" and "Export channels"
-- [ ] Export serializes all current channels into the versioned JSON format and saves to the user's chosen location
-- [ ] Import parses valid versioned JSON files and supports both `streamUrls` array and fallback single `streamUrl`
-- [ ] Import presents a confirmation warning dialog before replacing existing channels
-- [ ] Invalid channel entries in the imported file are skipped while valid channels are imported
-- [ ] User receives feedback on the number of successfully imported channels
-- [ ] Unit and UI tests verify JSON serialization, parsing, error recovery, and import replacement flow
+- [x] Top bar provides an overflow menu with "Import channels" and "Export channels"
+- [x] Export serializes all current channels into the versioned JSON format and saves to the user's chosen location
+- [x] Import parses valid versioned JSON files and supports both `streamUrls` array and fallback single `streamUrl`
+- [x] Import presents a confirmation warning dialog before replacing existing channels
+- [x] Invalid channel entries in the imported file are skipped while valid channels are imported
+- [x] User receives feedback on the number of successfully imported channels
+- [x] Unit and UI tests verify JSON serialization, parsing, error recovery, and import replacement flow
