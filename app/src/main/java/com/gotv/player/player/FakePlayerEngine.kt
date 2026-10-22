@@ -36,6 +36,9 @@ class FakePlayerEngine(
     var releaseCount: Int = 0
         private set
 
+    /** When true, [play] simulates an unreachable stream by entering ERROR instead of PLAYING. */
+    var failPlays: Boolean = false
+
     override val player: Player? = null
 
     override fun play(streamUrl: String) {
@@ -43,7 +46,9 @@ class FakePlayerEngine(
         playCount++
         _isStopped = false
         _isReleased = false
-        _playbackState.value = PlaybackState(PlaybackStatus.PLAYING)
+        _playbackState.value =
+            if (failPlays) PlaybackState(PlaybackStatus.ERROR, "Stream unreachable")
+            else PlaybackState(PlaybackStatus.PLAYING)
     }
 
     override fun setVolume(volume: Float) {
