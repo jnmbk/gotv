@@ -36,5 +36,10 @@ interface ChannelRepository {
      * Reorders channels according to the provided list of channel identifiers.
      */
     suspend fun reorderChannels(orderedChannelIds: List<String>)
+
+    /**
+     * Updates the last successfully played stream URL for the channel without affecting order or positions.
+     */
+    suspend fun updateLastPlayedUrl(channelId: String, streamUrl: String)
 }
 

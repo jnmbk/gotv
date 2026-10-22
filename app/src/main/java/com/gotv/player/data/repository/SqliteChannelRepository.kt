@@ -59,10 +59,15 @@ class SqliteChannelRepository(
         db.beginTransaction()
         try {
             db.execSQL("UPDATE $TABLE_NAME SET $COLUMN_POSITION = $COLUMN_POSITION + 1")
+            val urls = channel.streamUrls.ifEmpty {
+                if (channel.streamUrl.isNotEmpty()) listOf(channel.streamUrl) else emptyList()
+            }
             val values = ContentValues().apply {
                 put(COLUMN_ID, channel.id)
                 put(COLUMN_NAME, channel.name)
                 put(COLUMN_STREAM_URL, channel.streamUrl)
+                put(COLUMN_STREAM_URLS, encodeStreamUrls(urls))
+                put(COLUMN_LAST_PLAYED_URL, channel.lastPlayedUrl)
                 put(COLUMN_LOGO_URL, channel.logoUrl)
                 put(COLUMN_LOCAL_LOGO_PATH, channel.localLogoPath)
                 put(COLUMN_CREATED_AT, channel.createdAt)
@@ -78,13 +83,27 @@ class SqliteChannelRepository(
 
     override suspend fun updateChannel(channel: Channel) = withContext(ioDispatcher) {
         val db = dbHelper.writableDatabase
+        val urls = channel.streamUrls.ifEmpty {
+            if (channel.streamUrl.isNotEmpty()) listOf(channel.streamUrl) else emptyList()
+        }
         val values = ContentValues().apply {
             put(COLUMN_NAME, channel.name)
             put(COLUMN_STREAM_URL, channel.streamUrl)
+            put(COLUMN_STREAM_URLS, encodeStreamUrls(urls))
+            put(COLUMN_LAST_PLAYED_URL, channel.lastPlayedUrl)
             put(COLUMN_LOGO_URL, channel.logoUrl)
             put(COLUMN_LOCAL_LOGO_PATH, channel.localLogoPath)
         }
         db.update(TABLE_NAME, values, "$COLUMN_ID = ?", arrayOf(channel.id))
+        _channels.value = readAllFromDb()
+    }
+
+    override suspend fun updateLastPlayedUrl(channelId: String, streamUrl: String) = withContext(ioDispatcher) {
+        val db = dbHelper.writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_LAST_PLAYED_URL, streamUrl)
+        }
+        db.update(TABLE_NAME, values, "$COLUMN_ID = ?", arrayOf(channelId))
         _channels.value = readAllFromDb()
     }
 
@@ -134,7 +153,22 @@ class SqliteChannelRepository(
     private fun mapRow(cursor: android.database.Cursor): Channel {
         val id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID))
         val name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME))
-        val streamUrl = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_STREAM_URL))
+        val streamUrlLegacy = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_STREAM_URL))
+        val streamUrlsIndex = cursor.getColumnIndex(COLUMN_STREAM_URLS)
+        val streamUrlsJson = if (streamUrlsIndex >= 0 && !cursor.isNull(streamUrlsIndex)) {
+            cursor.getString(streamUrlsIndex)
+        } else {
+            null
+        }
+        val streamUrls = decodeStreamUrls(streamUrlsJson).ifEmpty {
+            if (!streamUrlLegacy.isNullOrEmpty()) listOf(streamUrlLegacy) else emptyList()
+        }
+        val lastPlayedIndex = cursor.getColumnIndex(COLUMN_LAST_PLAYED_URL)
+        val lastPlayedUrl = if (lastPlayedIndex >= 0 && !cursor.isNull(lastPlayedIndex)) {
+            cursor.getString(lastPlayedIndex)
+        } else {
+            null
+        }
         val logoUrl = if (cursor.isNull(cursor.getColumnIndexOrThrow(COLUMN_LOGO_URL))) null else cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LOGO_URL))
         val localLogoPath = if (cursor.isNull(cursor.getColumnIndexOrThrow(COLUMN_LOCAL_LOGO_PATH))) null else cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LOCAL_LOGO_PATH))
         val createdAt = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_CREATED_AT))
@@ -143,11 +177,12 @@ class SqliteChannelRepository(
         return Channel(
             id = id,
             name = name,
-            streamUrl = streamUrl,
+            streamUrls = streamUrls,
             logoUrl = logoUrl,
             localLogoPath = localLogoPath,
             createdAt = createdAt,
-            position = position
+            position = position,
+            lastPlayedUrl = lastPlayedUrl
         )
     }
 
@@ -162,7 +197,9 @@ class SqliteChannelRepository(
                     $COLUMN_LOGO_URL TEXT,
                     $COLUMN_LOCAL_LOGO_PATH TEXT,
                     $COLUMN_CREATED_AT INTEGER NOT NULL,
-                    $COLUMN_POSITION INTEGER NOT NULL DEFAULT 0
+                    $COLUMN_POSITION INTEGER NOT NULL DEFAULT 0,
+                    $COLUMN_STREAM_URLS TEXT,
+                    $COLUMN_LAST_PLAYED_URL TEXT
                 )
                 """.trimIndent()
             )
@@ -193,12 +230,38 @@ class SqliteChannelRepository(
                     db.update(TABLE_NAME, values, "$COLUMN_ID = ?", arrayOf(id))
                 }
             }
+            if (oldVersion < 3) {
+                db.execSQL("ALTER TABLE $TABLE_NAME ADD COLUMN $COLUMN_STREAM_URLS TEXT")
+                db.execSQL("ALTER TABLE $TABLE_NAME ADD COLUMN $COLUMN_LAST_PLAYED_URL TEXT")
+                val cursor = db.query(
+                    TABLE_NAME,
+                    arrayOf(COLUMN_ID, COLUMN_STREAM_URL),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+                )
+                cursor.use {
+                    while (it.moveToNext()) {
+                        val id = it.getString(0)
+                        val streamUrl = it.getString(1)
+                        if (!streamUrl.isNullOrEmpty()) {
+                            val jsonArray = org.json.JSONArray().apply { put(streamUrl) }
+                            val values = ContentValues().apply {
+                                put(COLUMN_STREAM_URLS, jsonArray.toString())
+                            }
+                            db.update(TABLE_NAME, values, "$COLUMN_ID = ?", arrayOf(id))
+                        }
+                    }
+                }
+            }
         }
     }
 
     companion object {
         const val DATABASE_NAME = "gotv_channels.db"
-        const val DATABASE_VERSION = 2
+        const val DATABASE_VERSION = 3
         const val TABLE_NAME = "channels"
 
         const val COLUMN_ID = "id"
@@ -208,6 +271,8 @@ class SqliteChannelRepository(
         const val COLUMN_LOCAL_LOGO_PATH = "local_logo_path"
         const val COLUMN_CREATED_AT = "created_at"
         const val COLUMN_POSITION = "position"
+        const val COLUMN_STREAM_URLS = "stream_urls"
+        const val COLUMN_LAST_PLAYED_URL = "last_played_url"
 
         private val PROJECTION = arrayOf(
             COLUMN_ID,
@@ -216,8 +281,30 @@ class SqliteChannelRepository(
             COLUMN_LOGO_URL,
             COLUMN_LOCAL_LOGO_PATH,
             COLUMN_CREATED_AT,
-            COLUMN_POSITION
+            COLUMN_POSITION,
+            COLUMN_STREAM_URLS,
+            COLUMN_LAST_PLAYED_URL
         )
+
+        private fun encodeStreamUrls(urls: List<String>): String {
+            val array = org.json.JSONArray()
+            urls.forEach { array.put(it) }
+            return array.toString()
+        }
+
+        private fun decodeStreamUrls(json: String?): List<String> {
+            if (json.isNullOrBlank()) return emptyList()
+            return try {
+                val array = org.json.JSONArray(json)
+                val list = mutableListOf<String>()
+                for (i in 0 until array.length()) {
+                    list.add(array.getString(i))
+                }
+                list
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
     }
 }
 

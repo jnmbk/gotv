@@ -53,5 +53,11 @@ class InMemoryChannelRepository(
             ch.copy(position = index)
         }
     }
+
+    override suspend fun updateLastPlayedUrl(channelId: String, streamUrl: String) {
+        _channels.value = _channels.value.map {
+            if (it.id == channelId) it.copy(lastPlayedUrl = streamUrl) else it
+        }
+    }
 }
 
