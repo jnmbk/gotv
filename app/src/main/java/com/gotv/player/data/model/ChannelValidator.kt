@@ -9,10 +9,11 @@ object ChannelValidator {
     data class ValidationResult(
         val nameError: String? = null,
         val streamUrlError: String? = null,
+        val streamUrlsErrors: List<String?> = emptyList(),
         val logoUrlError: String? = null
     ) {
         val isValid: Boolean
-            get() = nameError == null && streamUrlError == null && logoUrlError == null
+            get() = nameError == null && streamUrlError == null && streamUrlsErrors.all { it == null } && logoUrlError == null
     }
 
     /**
@@ -57,18 +58,28 @@ object ChannelValidator {
     fun normalizeOptionalUrl(url: String?): String? =
         normalizeUrl(url.orEmpty()).ifEmpty { null }
 
-    fun validate(name: String, streamUrl: String, logoUrl: String? = null): ValidationResult {
+    fun validate(name: String, streamUrl: String, logoUrl: String? = null): ValidationResult =
+        validate(name = name, streamUrls = listOf(streamUrl), logoUrl = logoUrl)
+
+    fun validate(name: String, streamUrls: List<String>, logoUrl: String? = null): ValidationResult {
         val nameError = when {
             name.isBlank() -> "Channel name cannot be empty"
             else -> null
         }
 
-        val normalizedStreamUrl = normalizeUrl(streamUrl)
-        val streamUrlError = when {
-            normalizedStreamUrl.isEmpty() -> "Stream URL cannot be empty"
-            !isValidHttpUrl(normalizedStreamUrl) -> "Please enter a valid stream URL"
-            else -> null
+        val streamUrlsErrors = if (streamUrls.isEmpty()) {
+            listOf("Stream URL cannot be empty")
+        } else {
+            streamUrls.map { url ->
+                val normalizedStreamUrl = normalizeUrl(url)
+                when {
+                    normalizedStreamUrl.isEmpty() -> "Stream URL cannot be empty"
+                    !isValidHttpUrl(normalizedStreamUrl) -> "Please enter a valid stream URL"
+                    else -> null
+                }
+            }
         }
+        val streamUrlError = streamUrlsErrors.firstOrNull { it != null }
 
         val normalizedLogo = normalizeOptionalUrl(logoUrl)
         val logoUrlError = when {
@@ -80,6 +91,7 @@ object ChannelValidator {
         return ValidationResult(
             nameError = nameError,
             streamUrlError = streamUrlError,
+            streamUrlsErrors = streamUrlsErrors,
             logoUrlError = logoUrlError
         )
     }

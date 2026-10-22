@@ -126,5 +126,67 @@ class ChannelValidatorTest {
         assertFalse(result.isValid)
         assertEquals("Please enter a valid logo URL", result.logoUrlError)
     }
+
+    @Test
+    fun validChannelWithMultipleStreamUrls_passesValidation() {
+        val result = ChannelValidator.validate(
+            name = "BBC One",
+            streamUrls = listOf(
+                "https://example.com/primary.m3u8",
+                "https://backup.example.com/stream.m3u8",
+                "example.com/fallback.m3u8"
+            ),
+            logoUrl = "https://example.com/logo.png"
+        )
+        assertTrue(result.isValid)
+        assertNull(result.streamUrlError)
+        assertEquals(listOf(null, null, null), result.streamUrlsErrors)
+    }
+
+    @Test
+    fun multipleStreamUrlsWithInvalidSecondaryUrl_identifiesErrorAtIndex() {
+        val result = ChannelValidator.validate(
+            name = "BBC One",
+            streamUrls = listOf(
+                "https://example.com/primary.m3u8",
+                "invalid-link",
+                "https://example.com/fallback.m3u8"
+            )
+        )
+        assertFalse(result.isValid)
+        assertEquals("Please enter a valid stream URL", result.streamUrlError)
+        assertEquals(
+            listOf(null, "Please enter a valid stream URL", null),
+            result.streamUrlsErrors
+        )
+    }
+
+    @Test
+    fun multipleStreamUrlsWithEmptySecondaryUrl_identifiesErrorAtIndex() {
+        val result = ChannelValidator.validate(
+            name = "BBC One",
+            streamUrls = listOf(
+                "https://example.com/primary.m3u8",
+                "https://"
+            )
+        )
+        assertFalse(result.isValid)
+        assertEquals("Stream URL cannot be empty", result.streamUrlError)
+        assertEquals(
+            listOf(null, "Stream URL cannot be empty"),
+            result.streamUrlsErrors
+        )
+    }
+
+    @Test
+    fun emptyStreamUrlsList_failsValidation() {
+        val result = ChannelValidator.validate(
+            name = "BBC One",
+            streamUrls = emptyList()
+        )
+        assertFalse(result.isValid)
+        assertEquals("Stream URL cannot be empty", result.streamUrlError)
+        assertEquals(listOf("Stream URL cannot be empty"), result.streamUrlsErrors)
+    }
 }
 
