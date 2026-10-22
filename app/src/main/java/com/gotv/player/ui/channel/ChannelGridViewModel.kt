@@ -186,12 +186,19 @@ class ChannelGridViewModel(
         if (existingChannel != null) {
             viewModelScope.launch {
                 val logoChanged = normalizedLogoUrl != existingChannel.logoUrl
+                val updatedStreamUrls = if (existingChannel.streamUrls.size > 1 &&
+                    (existingChannel.streamUrls.firstOrNull() == normalizedStreamUrl || existingChannel.lastPlayedUrl == normalizedStreamUrl)
+                ) {
+                    existingChannel.streamUrls
+                } else {
+                    listOf(normalizedStreamUrl)
+                }
                 val updatedChannel = when {
                     normalizedLogoUrl == null -> {
                         logoStorage?.deleteCachedLogo(existingChannel.id)
                         existingChannel.copy(
                             name = trimmedName,
-                            streamUrl = normalizedStreamUrl,
+                            streamUrls = updatedStreamUrls,
                             logoUrl = null,
                             localLogoPath = null
                         )
@@ -199,7 +206,7 @@ class ChannelGridViewModel(
                     logoChanged -> {
                         val baseUpdated = existingChannel.copy(
                             name = trimmedName,
-                            streamUrl = normalizedStreamUrl,
+                            streamUrls = updatedStreamUrls,
                             logoUrl = normalizedLogoUrl
                         )
                         repository.updateChannel(baseUpdated)
@@ -220,7 +227,7 @@ class ChannelGridViewModel(
                     else -> {
                         val baseUpdated = existingChannel.copy(
                             name = trimmedName,
-                            streamUrl = normalizedStreamUrl,
+                            streamUrls = updatedStreamUrls,
                             logoUrl = normalizedLogoUrl
                         )
                         if (existingChannel.localLogoPath == null && logoStorage != null) {
