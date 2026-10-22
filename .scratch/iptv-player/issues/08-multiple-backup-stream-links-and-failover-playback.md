@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Channel Persistence & Grid Dashboard, 04: Stream Resilience, Loading Spinner & Auto-Reconnection, 07: Long-Press Channel Management & Drag-and-Drop Reordering
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Design Decisions
 
@@ -29,10 +29,10 @@
 
 ## Acceptance Criteria
 
-- [ ] `Channel` model supports multiple `streamUrls: List<String>` and `lastPlayedUrl: String?`
-- [ ] SQLite schema migration upgrades database to version 3 without data loss, migrating legacy single URLs into `streamUrls`
-- [ ] Player initializes playback using `lastPlayedUrl` if valid, falling back to the first URL in `streamUrls`
-- [ ] On playback error, player cycles through available backup stream URLs during auto-reconnection
-- [ ] Successfully playing a backup link updates and persists `lastPlayedUrl` in the database
-- [ ] When all backup stream URLs fail, the player enters the failed state with retry option
-- [ ] Unit tests verify database migration, repository last-played persistence, and failover stream switching
+- [x] `Channel` model supports multiple `streamUrls: List<String>` and `lastPlayedUrl: String?`
+- [x] SQLite schema migration upgrades database to version 3 without data loss, migrating legacy single URLs into `streamUrls`
+- [x] Player initializes playback using `lastPlayedUrl` if valid, falling back to the first URL in `streamUrls`
+- [x] On playback error, player cycles through available backup stream URLs during auto-reconnection
+- [x] Successfully playing a backup link updates and persists `lastPlayedUrl` in the database
+- [x] When all backup stream URLs fail, the player enters the failed state with retry option
+- [x] Unit tests verify database migration, repository last-played persistence, and failover stream switching
