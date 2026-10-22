@@ -36,6 +36,10 @@ A lightweight, low-RAM Android IPTV application tailored for smooth stream playb
 22. As a viewer, I want previous playback sessions and decoder resources to be released immediately when switching channels or returning to the grid, so that memory usage remains strictly bounded.
 23. As a viewer, I want my channel list and cached logos to persist across app launches, so that my channels are always available when I open the app.
 24. As a viewer opening the app for the first time, I want an empty state with a clear call-to-action to add my first channel, so that I know how to get started.
+25. As a viewer with multiple stream sources, I want channels to hold backup stream links so that playback can automatically failover to working backups if the primary stream fails.
+26. As a viewer returning to a channel, I want the player to automatically try the last successfully played stream URL first, so that I avoid repeating failed links.
+27. As a viewer configuring a channel, I want per-input QR scanning directly on stream and logo URL fields, so that I can quickly populate individual URLs without parsing complex multi-field payloads.
+28. As a viewer managing channels across devices or backups, I want to export and import my channel list as a JSON file, so that I can easily backup or restore my configuration.
 
 ## Implementation Decisions
 
