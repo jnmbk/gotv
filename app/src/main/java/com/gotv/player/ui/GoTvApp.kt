@@ -2,6 +2,7 @@ package com.gotv.player.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.RememberObserver
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ fun GoTvApp(
         ChannelGridViewModel(channelRepository, logoStorage)
     }
 
+    val channelState by channelViewModel.uiState.collectAsState()
     val currentChannel = activeChannel
     if (currentChannel == null) {
         ChannelGridScreen(
@@ -51,7 +53,9 @@ fun GoTvApp(
             onBack = {
                 activeChannel = null
             },
-            modifier = modifier
+            modifier = modifier,
+            channels = channelState.channels,
+            onChannelSelected = { channel -> activeChannel = channel }
         )
     }
 }

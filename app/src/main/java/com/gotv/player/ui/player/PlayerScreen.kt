@@ -27,7 +27,18 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import com.gotv.player.data.model.Channel
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -51,9 +62,24 @@ fun PlayerScreen(
     viewModel: PlayerViewModel,
     playerEngine: PlayerEngine,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    channels: List<Channel> = emptyList(),
+    onChannelSelected: (Channel) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var sidebarVisible by remember { mutableStateOf(false) }
+    var interactionTick by remember { mutableIntStateOf(0) }
+    val sidebarProgress by animateFloatAsState(
+        targetValue = if (sidebarVisible) 1f else 0f,
+        label = "sidebarProgress"
+    )
+
+    LaunchedEffect(sidebarVisible, interactionTick) {
+        if (sidebarVisible) {
+            delay(SIDEBAR_AUTO_DISMISS_MS)
+            sidebarVisible = false
+        }
+    }
 
     BackHandler(onBack = {
         viewModel.release()
@@ -84,11 +110,32 @@ fun PlayerScreen(
             .fillMaxSize()
             .background(Color.Black)
             .testTag("player_screen")
+    ) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                val scale = 1f - SIDEBAR_VIDEO_SHRINK * sidebarProgress
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = TransformOrigin(1f, 0.5f)
+            }
+            .testTag("video_viewport")
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, dragAmount ->
                     val delta = -dragAmount / 500f
                     val newVolume = (uiState.volume + delta).coerceIn(0f, 1f)
                     viewModel.setVolume(newVolume)
+                }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures {
+                    if (sidebarVisible) {
+                        sidebarVisible = false
+                    } else if (channels.isNotEmpty()) {
+                        interactionTick++
+                        sidebarVisible = true
+                    }
                 }
             }
     ) {
@@ -261,4 +308,26 @@ fun PlayerScreen(
             }
         }
     }
+
+    if (sidebarProgress > 0f) {
+        ChannelSidebar(
+            channels = channels,
+            activeChannelId = uiState.channel.id,
+            onChannelSelected = { channel ->
+                if (channel.id != uiState.channel.id) {
+                    sidebarVisible = false
+                    onChannelSelected(channel)
+                }
+            },
+            onInteraction = { interactionTick++ },
+            modifier = Modifier
+                .fillMaxWidth(SIDEBAR_VIDEO_SHRINK)
+                .align(Alignment.CenterStart)
+                .graphicsLayer { alpha = sidebarProgress }
+        )
+    }
+    }
 }
+
+/** Fraction of the screen width given to the sidebar (and taken from the video). */
+private const val SIDEBAR_VIDEO_SHRINK = 0.3f
