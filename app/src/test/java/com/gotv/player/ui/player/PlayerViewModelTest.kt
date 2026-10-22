@@ -81,4 +81,38 @@ class PlayerViewModelTest {
 
         assertEquals(PlaybackStatus.BUFFERING, viewModel.uiState.value.playbackState.status)
     }
+
+    @Test
+    fun onBackground_stopsEngine_andOnForegroundRestartsStream() = runTest {
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+
+        viewModel.onBackground()
+        assertEquals(1, fakeEngine.stopCount)
+        assertEquals(PlaybackStatus.IDLE, fakeEngine.playbackState.value.status)
+
+        viewModel.onForeground()
+        assertEquals(2, fakeEngine.playCount)
+        assertEquals(testChannel.streamUrl, fakeEngine.currentStreamUrl)
+        assertEquals(PlaybackStatus.PLAYING, fakeEngine.playbackState.value.status)
+    }
+
+    @Test
+    fun onForeground_withoutBackground_doesNotRestartPlayback() = runTest {
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+
+        viewModel.onForeground()
+
+        assertEquals(1, fakeEngine.playCount)
+    }
+
+    @Test
+    fun onForeground_afterRelease_doesNotRestartPlayback() = runTest {
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+
+        viewModel.onBackground()
+        viewModel.release()
+        viewModel.onForeground()
+
+        assertEquals(1, fakeEngine.playCount)
+    }
 }

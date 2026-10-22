@@ -38,6 +38,22 @@ class PlayerViewModel(
         playerEngine.setVolume(volume)
     }
 
+    private var stoppedInBackground = false
+
+    /** Frees decoders and stops audio while the app is not visible. */
+    fun onBackground() {
+        if (playerEngine.isReleased || stoppedInBackground) return
+        stoppedInBackground = true
+        playerEngine.stop()
+    }
+
+    /** Restarts the live stream if it was stopped by [onBackground]. */
+    fun onForeground() {
+        if (!stoppedInBackground || playerEngine.isReleased) return
+        stoppedInBackground = false
+        playerEngine.play(channel.streamUrl)
+    }
+
     fun release() {
         playerEngine.release()
     }
