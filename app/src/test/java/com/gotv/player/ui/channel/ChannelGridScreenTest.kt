@@ -3,12 +3,17 @@ package com.gotv.player.ui.channel
 import com.gotv.player.testing.SlowTest
 
 import android.graphics.Bitmap
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ApplicationProvider
 import com.gotv.player.data.model.Channel
 import com.gotv.player.data.repository.InMemoryChannelRepository
@@ -16,8 +21,12 @@ import com.gotv.player.data.repository.SqliteChannelRepository
 import com.gotv.player.data.storage.FileLogoStorage
 import com.gotv.player.data.storage.ImageDownloader
 import com.gotv.player.data.storage.InMemoryLogoStorage
+import com.gotv.player.ui.qr.FakeQrScannerProvider
 import com.gotv.player.ui.theme.GoTvTheme
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -29,6 +38,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Category(SlowTest::class)
 @RunWith(RobolectricTestRunner::class)
 class ChannelGridScreenTest {
@@ -196,7 +206,8 @@ class ChannelGridScreenTest {
         }
         val storage = FileLogoStorage(
             baseDir = tempFolder.newFolder("logos_e2e_valid"),
-            imageDownloader = fakeDownloader
+            imageDownloader = fakeDownloader,
+            ioDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher()
         )
         val repository = InMemoryChannelRepository()
         val viewModel = ChannelGridViewModel(repository, storage)
@@ -309,6 +320,248 @@ class ChannelGridScreenTest {
         composeTestRule.onNodeWithText("Cached News").assertIsDisplayed()
         composeTestRule.onNodeWithTag("channel_logo_image", useUnmergedTree = true).assertIsDisplayed()
         assertEquals(0, networkCalls)
+    }
+
+    @Test
+    fun longPressChannel_opensContextMenu_withExpectedOptions() {
+        val repository = InMemoryChannelRepository(
+            listOf(
+                Channel(
+                    id = "with-logo",
+                    name = "With Logo",
+                    streamUrl = "https://example.com/1.m3u8",
+                    logoUrl = "https://example.com/logo.png"
+                ),
+                Channel(
+                    id = "no-logo",
+                    name = "No Logo",
+                    streamUrl = "https://example.com/2.m3u8",
+                    logoUrl = null
+                )
+            )
+        )
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        // Long press channel with logoUrl -> shows Edit, Redownload Logo, Delete
+        composeTestRule.onNodeWithTag("channel_tile_with-logo").performTouchInput { longClick() }
+        composeTestRule.onNodeWithTag("context_menu_edit").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("context_menu_redownload_logo").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("context_menu_delete").assertIsDisplayed()
+
+        // Long press channel without logoUrl -> hides Redownload Logo
+        composeTestRule.onNodeWithTag("channel_tile_no-logo").performTouchInput { longClick() }
+        composeTestRule.onNodeWithTag("context_menu_edit").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("context_menu_redownload_logo").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("context_menu_delete").assertIsDisplayed()
+    }
+
+    @Test
+    fun editChannelFromContextMenu_updatesDetailsAndHandlesQrScanAndLogoChanges() {
+        val sampleBytes = createSamplePngBytes()
+        val logoFolder = tempFolder.newFolder("logos_edit")
+        val cachedFile = File(logoFolder, "edit-chan.png")
+        FileOutputStream(cachedFile).use { it.write(sampleBytes) }
+
+        val storage = FileLogoStorage(
+            baseDir = logoFolder,
+            imageDownloader = { sampleBytes },
+            ioDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher()
+        )
+        val repository = InMemoryChannelRepository(
+            listOf(
+                Channel(
+                    id = "edit-chan",
+                    name = "Initial Channel",
+                    streamUrl = "https://example.com/initial.m3u8",
+                    logoUrl = "https://example.com/initial.png",
+                    localLogoPath = cachedFile.absolutePath
+                )
+            )
+        )
+        val viewModel = ChannelGridViewModel(repository, storage)
+        val scanner = FakeQrScannerProvider(
+            imagePayload = """{"name":"Scanned Edit","url":"https://example.com/scanned.m3u8"}"""
+        )
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel, qrScanner = scanner)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("channel_tile_edit-chan").performTouchInput { longClick() }
+        composeTestRule.onNodeWithTag("context_menu_edit").performClick()
+
+        // Edit dialog opens with pre-populated values and "Edit Channel" / "Save"
+        composeTestRule.onNodeWithText("Edit Channel").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Save").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("channel_name_input").assertTextContains("Initial Channel")
+        composeTestRule.onNodeWithTag("stream_url_input").assertTextContains("https://example.com/initial.m3u8")
+        composeTestRule.onNodeWithTag("logo_url_input").assertTextContains("https://example.com/initial.png")
+
+        // Use QR import inside Edit Channel (which sets logoUrl to empty)
+        composeTestRule.onNodeWithTag("import_qr_image_button").performClick()
+        composeTestRule.onNodeWithTag("channel_name_input").assertTextContains("Scanned Edit")
+        composeTestRule.onNodeWithTag("save_channel_button").performClick()
+        composeTestRule.waitForIdle()
+
+        // Channel name updated, cached logo deleted, placeholder shown
+        composeTestRule.onNodeWithText("Scanned Edit").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("channel_logo_placeholder", useUnmergedTree = true).assertIsDisplayed()
+        assertFalse(cachedFile.exists())
+    }
+
+    @Test
+    fun redownloadLogoFromContextMenu_forcesFreshDownloadAndRefreshesUi() {
+        val sampleBytes = createSamplePngBytes()
+        var downloadCalls = 0
+        val logoFolder = tempFolder.newFolder("logos_redownload")
+        val storage = FileLogoStorage(
+            baseDir = logoFolder,
+            imageDownloader = {
+                downloadCalls++
+                sampleBytes
+            },
+            ioDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher()
+        )
+        val repository = InMemoryChannelRepository(
+            listOf(
+                Channel(
+                    id = "redownload-chan",
+                    name = "Logo Test",
+                    streamUrl = "https://example.com/live.m3u8",
+                    logoUrl = "https://example.com/logo.png",
+                    localLogoPath = null
+                )
+            )
+        )
+        val viewModel = ChannelGridViewModel(repository, storage)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        // Initially displays placeholder because localLogoPath is null
+        composeTestRule.onNodeWithTag("channel_logo_placeholder", useUnmergedTree = true).assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("channel_tile_redownload-chan").performTouchInput { longClick() }
+        composeTestRule.onNodeWithTag("context_menu_redownload_logo").performClick()
+        composeTestRule.waitForIdle()
+
+        // After redownload, logo image is displayed and download was invoked
+        assertEquals(1, downloadCalls)
+        composeTestRule.onNodeWithTag("channel_logo_image", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun deleteChannelFromContextMenu_showsConfirmationAndRemovesChannelAndCachedLogo() {
+        val sampleBytes = createSamplePngBytes()
+        val logoFolder = tempFolder.newFolder("logos_delete")
+        val cachedFile = File(logoFolder, "del-chan.png")
+        FileOutputStream(cachedFile).use { it.write(sampleBytes) }
+
+        val storage = FileLogoStorage(baseDir = logoFolder, imageDownloader = { sampleBytes })
+        val repository = InMemoryChannelRepository(
+            listOf(
+                Channel(
+                    id = "del-chan",
+                    name = "To Delete",
+                    streamUrl = "https://example.com/del.m3u8",
+                    logoUrl = "https://example.com/del.png",
+                    localLogoPath = cachedFile.absolutePath
+                )
+            )
+        )
+        val viewModel = ChannelGridViewModel(repository, storage)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("channel_tile_del-chan").performTouchInput { longClick() }
+        composeTestRule.onNodeWithTag("context_menu_delete").performClick()
+
+        // Confirmation dialog appears
+        composeTestRule.onNodeWithTag("delete_channel_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Delete To Delete?").assertIsDisplayed()
+
+        // Cancel keeps channel
+        composeTestRule.onNodeWithTag("cancel_delete_channel_button").performClick()
+        composeTestRule.onNodeWithTag("delete_channel_dialog").assertDoesNotExist()
+        composeTestRule.onNodeWithText("To Delete").assertIsDisplayed()
+        assertTrue(cachedFile.exists())
+
+        // Delete again and confirm
+        composeTestRule.onNodeWithTag("channel_tile_del-chan").performTouchInput { longClick() }
+        composeTestRule.onNodeWithTag("context_menu_delete").performClick()
+        composeTestRule.onNodeWithTag("confirm_delete_channel_button").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("To Delete").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("empty_channels_view").assertIsDisplayed()
+        assertFalse(cachedFile.exists())
+    }
+
+    @Test
+    fun longPressAndDrag_dismissesContextMenu_andReordersChannelsPersistently() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "drag_reorder_test.db"
+        val testDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher()
+        val repo = SqliteChannelRepository(context, dbName, ioDispatcher = testDispatcher)
+        runBlocking {
+            repo.addChannel(Channel(id = "c1", name = "First", streamUrl = "https://example.com/1.m3u8"))
+            repo.addChannel(Channel(id = "c2", name = "Second", streamUrl = "https://example.com/2.m3u8"))
+        }
+        // Order initially is c2 (position 0), c1 (position 1)
+        val viewModel = ChannelGridViewModel(repo)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        val c2Bounds = composeTestRule.onNodeWithTag("channel_tile_c2").fetchSemanticsNode().boundsInRoot
+        val c1Bounds = composeTestRule.onNodeWithTag("channel_tile_c1").fetchSemanticsNode().boundsInRoot
+        val gridBounds = composeTestRule.onNodeWithTag("channels_grid").fetchSemanticsNode().boundsInRoot
+
+        val startInGrid = c2Bounds.center - gridBounds.topLeft
+        val endInGrid = c1Bounds.center - gridBounds.topLeft
+        val delta = endInGrid - startInGrid
+
+        composeTestRule.onNodeWithTag("channels_grid").performTouchInput {
+            down(startInGrid)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 100L)
+            // Drag in steps to trigger slop and reorder
+            val steps = 10
+            for (i in 1..steps) {
+                moveBy(delta / steps.toFloat())
+                advanceEventTime(16L)
+            }
+            up()
+        }
+
+        composeTestRule.waitForIdle()
+
+        // Context menu must be dismissed and order swapped to [c1, c2]
+        composeTestRule.onNodeWithTag("context_menu_edit").assertDoesNotExist()
+        val reorderedIds = runBlocking { repo.getAllChannels().first().map { it.id } }
+        assertEquals(listOf("c1", "c2"), reorderedIds)
+
+        // Verify persistence across a new repository instance
+        val restartedRepo = SqliteChannelRepository(context, dbName)
+        val persistedIds = runBlocking { restartedRepo.getAllChannels().first().map { it.id } }
+        assertEquals(listOf("c1", "c2"), persistedIds)
     }
 }
 

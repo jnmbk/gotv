@@ -35,10 +35,11 @@ class GoTvAppSidebarEndToEndTest {
     private val first = Channel(id = "c1", name = "Bloomberg HD", streamUrl = "https://a.test/1.m3u8", createdAt = 1)
     private val second = Channel(id = "c2", name = "Al Jazeera", streamUrl = "https://a.test/2.m3u8", createdAt = 2)
     private val engines = mutableListOf<FakePlayerEngine>()
+    private lateinit var repo: InMemoryChannelRepository
 
     @Before
     fun setUp() {
-        val repo = InMemoryChannelRepository()
+        repo = InMemoryChannelRepository()
         runBlocking {
             repo.addChannel(second)
             repo.addChannel(first)
@@ -107,5 +108,18 @@ class GoTvAppSidebarEndToEndTest {
         assertTrue(engines[0].isReleased)
         assertEquals(second.streamUrl, engines[1].currentStreamUrl)
         composeTestRule.onNodeWithTag("channel_sidebar").assertDoesNotExist()
+    }
+
+    @Test
+    fun reorderedChannelsAreReflectedInSidebarOrder() {
+        runBlocking {
+            repo.reorderChannels(listOf("c2", "c1"))
+        }
+        tapVideo()
+        composeTestRule.onNodeWithTag("channel_sidebar").assertIsDisplayed()
+
+        val c2Top = composeTestRule.onNodeWithTag("sidebar_channel_c2").fetchSemanticsNode().boundsInRoot.top
+        val c1Top = composeTestRule.onNodeWithTag("sidebar_channel_c1").fetchSemanticsNode().boundsInRoot.top
+        assertTrue("Expected c2 above c1 in sidebar after reorder", c2Top < c1Top)
     }
 }
