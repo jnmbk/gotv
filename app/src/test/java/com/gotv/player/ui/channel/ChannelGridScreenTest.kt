@@ -392,7 +392,7 @@ class ChannelGridScreenTest {
         )
         val viewModel = ChannelGridViewModel(repository, storage)
         val scanner = FakeQrScannerProvider(
-            imagePayload = """{"name":"Scanned Edit","url":"https://example.com/scanned.m3u8"}"""
+            cameraPayload = "https://example.com/scanned.m3u8"
         )
 
         composeTestRule.setContent {
@@ -411,9 +411,15 @@ class ChannelGridScreenTest {
         composeTestRule.onNodeWithTag("stream_url_input").assertTextContains("https://example.com/initial.m3u8")
         composeTestRule.onNodeWithTag("logo_url_input").assertTextContains("https://example.com/initial.png")
 
-        // Use QR import inside Edit Channel (which sets logoUrl to empty)
-        composeTestRule.onNodeWithTag("import_qr_image_button").performClick()
-        composeTestRule.onNodeWithTag("channel_name_input").assertTextContains("Scanned Edit")
+        // Use inline QR scan on stream URL field
+        composeTestRule.onNodeWithTag("scan_stream_url_qr_button").performClick()
+        composeTestRule.onNodeWithTag("fake_camera").performClick()
+        composeTestRule.onNodeWithTag("stream_url_input").assertTextContains("https://example.com/scanned.m3u8")
+
+        // Also update name and clear logo URL
+        composeTestRule.onNodeWithTag("channel_name_input").performTextClearance()
+        composeTestRule.onNodeWithTag("channel_name_input").performTextInput("Scanned Edit")
+        composeTestRule.onNodeWithTag("logo_url_input").performTextClearance()
         composeTestRule.onNodeWithTag("save_channel_button").performClick()
         composeTestRule.waitForIdle()
 

@@ -182,50 +182,91 @@ class ChannelGridViewModelTest {
     }
 
     @Test
-    fun qrPayloadScanned_withValidJson_prefillsFormAndClosesScanner() = runTest(testDispatcher) {
+    fun qrScanning_streamUrlTarget_populatesOnlyStreamUrlAndDismissesScanner() = runTest(testDispatcher) {
         advanceUntilIdle()
         viewModel.onOpenAddDialog()
-        viewModel.onOpenQrScanner()
+        viewModel.onNameChanged("Test Channel")
+        viewModel.onLogoUrlChanged("https://example.com/logo.png")
+        viewModel.onOpenQrScanner(QrScanTarget.StreamUrl())
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.isQrScannerOpen)
 
-        viewModel.onQrPayloadScanned(
-            """{"name":"Sports HD","url":"https://streams.example.com/sports.m3u8","logo":"https://example.com/logo.png"}"""
-        )
+        val scanningState = viewModel.uiState.value
+        assertTrue(scanningState.isQrScannerOpen)
+        assertEquals(QrScanTarget.StreamUrl(), scanningState.qrScanTarget)
+
+        viewModel.onQrPayloadScanned("https://streams.example.com/live.m3u8")
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
         assertFalse(state.isQrScannerOpen)
-        assertNull(state.qrError)
-        assertEquals("Sports HD", state.nameInput)
-        assertEquals("https://streams.example.com/sports.m3u8", state.streamUrlInput)
+        assertNull(state.qrScanTarget)
+        assertEquals("https://streams.example.com/live.m3u8", state.streamUrlInput)
+        assertEquals("Test Channel", state.nameInput)
         assertEquals("https://example.com/logo.png", state.logoUrlInput)
     }
 
     @Test
-    fun qrPayloadScanned_withInvalidPayload_setsQrErrorAndClosesScanner() = runTest(testDispatcher) {
+    fun qrScanning_logoUrlTarget_populatesOnlyLogoUrlAndDismissesScanner() = runTest(testDispatcher) {
         advanceUntilIdle()
         viewModel.onOpenAddDialog()
-        viewModel.onOpenQrScanner()
+        viewModel.onNameChanged("Test Channel 2")
+        viewModel.onStreamUrlChanged("https://streams.example.com/stream.m3u8")
+        viewModel.onOpenQrScanner(QrScanTarget.LogoUrl)
+        advanceUntilIdle()
 
-        viewModel.onQrPayloadScanned("not-a-valid-qr-payload")
+        val scanningState = viewModel.uiState.value
+        assertTrue(scanningState.isQrScannerOpen)
+        assertEquals(QrScanTarget.LogoUrl, scanningState.qrScanTarget)
+
+        viewModel.onQrPayloadScanned("https://example.com/scanned-logo.png")
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
         assertFalse(state.isQrScannerOpen)
-        assertNotNull(state.qrError)
-        assertEquals("https://", state.streamUrlInput)
+        assertNull(state.qrScanTarget)
+        assertEquals("https://example.com/scanned-logo.png", state.logoUrlInput)
+        assertEquals("https://streams.example.com/stream.m3u8", state.streamUrlInput)
+        assertEquals("Test Channel 2", state.nameInput)
     }
 
     @Test
-    fun qrPayloadScanned_withNullFromEmptyImage_setsQrError() = runTest(testDispatcher) {
+    fun qrScanning_scannerDismiss_leavesInputContentsUnchanged() = runTest(testDispatcher) {
         advanceUntilIdle()
         viewModel.onOpenAddDialog()
+        viewModel.onNameChanged("Original Channel")
+        viewModel.onStreamUrlChanged("https://original.example.com/live.m3u8")
+        viewModel.onLogoUrlChanged("https://original.example.com/logo.png")
+
+        viewModel.onOpenQrScanner(QrScanTarget.StreamUrl())
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isQrScannerOpen)
+
+        viewModel.onCloseQrScanner()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isQrScannerOpen)
+        assertNull(state.qrScanTarget)
+        assertEquals("Original Channel", state.nameInput)
+        assertEquals("https://original.example.com/live.m3u8", state.streamUrlInput)
+        assertEquals("https://original.example.com/logo.png", state.logoUrlInput)
+    }
+
+    @Test
+    fun qrScanning_nullPayload_dismissesScannerWithoutChangingInputs() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenAddDialog()
+        viewModel.onStreamUrlChanged("https://existing.example.com/live.m3u8")
+        viewModel.onOpenQrScanner(QrScanTarget.StreamUrl())
+        advanceUntilIdle()
 
         viewModel.onQrPayloadScanned(null)
         advanceUntilIdle()
 
-        assertNotNull(viewModel.uiState.value.qrError)
+        val state = viewModel.uiState.value
+        assertFalse(state.isQrScannerOpen)
+        assertNull(state.qrScanTarget)
+        assertEquals("https://existing.example.com/live.m3u8", state.streamUrlInput)
     }
 
     @Test
