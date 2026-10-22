@@ -4,13 +4,13 @@
 
 **Blocked by:** 03: Live M3U8 Full-Screen Playback & Volume Control
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Tapping the screen during live playback shrinks the video viewport and exposes a vertical channel sidebar on the left
-- [ ] Sidebar displays the list of saved channels with their names and logos
-- [ ] A 10-second inactivity countdown timer automatically dismisses the sidebar and restores full-screen video
-- [ ] Interacting with or touching the sidebar resets the 10-second countdown timer
-- [ ] Tapping outside the sidebar immediately dismisses the sidebar and restores full screen
-- [ ] Selecting a channel in the sidebar switches the active stream immediately, releasing previous stream resources
-- [ ] End-to-end tests verify touch-to-open sidebar, auto-dismiss after timeout, touch reset, and channel switching
+- [x] Tapping the screen during live playback shrinks the video viewport and exposes a vertical channel sidebar on the left
+- [x] Sidebar displays the list of saved channels with their names and logos
+- [x] A 10-second inactivity countdown timer automatically dismisses the sidebar and restores full-screen video
+- [x] Interacting with or touching the sidebar resets the 10-second countdown timer
+- [x] Tapping outside the sidebar immediately dismisses the sidebar and restores full screen
+- [x] Selecting a channel in the sidebar switches the active stream immediately, releasing previous stream resources
+- [x] End-to-end tests verify touch-to-open sidebar, auto-dismiss after timeout, touch reset, and channel switching
 
