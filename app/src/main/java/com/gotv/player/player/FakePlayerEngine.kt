@@ -51,15 +51,19 @@ class FakePlayerEngine(
     }
 
     override fun stop() {
-        _isStopped = true
-        stopCount++
-        _playbackState.value = PlaybackState(PlaybackStatus.IDLE)
+        if (!_isStopped) {
+            _isStopped = true
+            stopCount++
+            _playbackState.value = PlaybackState(PlaybackStatus.IDLE)
+        }
     }
 
     override fun release() {
-        _isReleased = true
-        releaseCount++
-        _playbackState.value = PlaybackState(PlaybackStatus.IDLE)
+        if (!_isReleased) {
+            _isReleased = true
+            releaseCount++
+            _playbackState.value = PlaybackState(PlaybackStatus.IDLE)
+        }
     }
 
     fun updatePlaybackState(state: PlaybackState) {
