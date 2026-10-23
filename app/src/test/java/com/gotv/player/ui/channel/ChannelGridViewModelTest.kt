@@ -802,4 +802,202 @@ class ChannelGridViewModelTest {
         advanceUntilIdle()
         assertEquals("Write failed", viewModel.uiState.value.userFeedbackMessage)
     }
+
+    @Test
+    fun openAndDismissImportUrlDialog_togglesStateAndResetsInput() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isImportUrlDialogOpen)
+
+        viewModel.onOpenImportUrlDialog()
+        advanceUntilIdle()
+        val openState = viewModel.uiState.value
+        assertTrue(openState.isImportUrlDialogOpen)
+        assertEquals("https://", openState.importUrlInput)
+        assertNull(openState.importUrlError)
+        assertFalse(openState.isImportUrlLoading)
+
+        viewModel.onImportUrlChanged("https://example.com/channels.json")
+        viewModel.onDismissImportUrlDialog()
+        advanceUntilIdle()
+        val closedState = viewModel.uiState.value
+        assertFalse(closedState.isImportUrlDialogOpen)
+        assertEquals("", closedState.importUrlInput)
+        assertNull(closedState.importUrlError)
+    }
+
+    @Test
+    fun onClearImportUrl_clearsInputAndError() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenImportUrlDialog()
+        advanceUntilIdle()
+        viewModel.onImportUrlChanged("example.com/channels.json")
+        advanceUntilIdle()
+        assertEquals("example.com/channels.json", viewModel.uiState.value.importUrlInput)
+
+        viewModel.onClearImportUrl()
+        advanceUntilIdle()
+        assertEquals("", viewModel.uiState.value.importUrlInput)
+        assertNull(viewModel.uiState.value.importUrlError)
+    }
+
+    @Test
+    fun onQrPayloadScanned_targetingImportUrl_updatesImportUrlInput() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenImportUrlDialog()
+        viewModel.onOpenQrScanner(QrScanTarget.ImportUrl)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isQrScannerOpen)
+        assertEquals(QrScanTarget.ImportUrl, viewModel.uiState.value.qrScanTarget)
+
+        viewModel.onQrPayloadScanned("https://https://gotv.example.com/channels.json")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isQrScannerOpen)
+        assertNull(state.qrScanTarget)
+        assertEquals("https://gotv.example.com/channels.json", state.importUrlInput)
+    }
+
+    @Test
+    fun submitImportUrl_withEmptyUrl_setsInlineError() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenImportUrlDialog()
+        viewModel.onClearImportUrl()
+
+        viewModel.onSubmitImportUrl()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isImportUrlDialogOpen)
+        assertEquals("URL cannot be empty", state.importUrlError)
+        assertFalse(state.isImportUrlLoading)
+    }
+
+    @Test
+    fun submitImportUrl_withBareHttpsPrefix_setsInlineError() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenImportUrlDialog() // Defaults to https://
+
+        viewModel.onSubmitImportUrl()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isImportUrlDialogOpen)
+        assertEquals("URL cannot be empty", state.importUrlError)
+        assertFalse(state.isImportUrlLoading)
+    }
+
+    @Test
+    fun submitImportUrl_withInvalidUrl_setsInlineError() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        viewModel.onOpenImportUrlDialog()
+        viewModel.onImportUrlChanged("not-a-valid-url")
+
+        viewModel.onSubmitImportUrl()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isImportUrlDialogOpen)
+        assertEquals("Please enter a valid URL", state.importUrlError)
+        assertFalse(state.isImportUrlLoading)
+    }
+
+    @Test
+    fun submitImportUrl_whenDownloadFails_surfacesErrorAndKeepsDialogOpen() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        val failingDownloader = com.gotv.player.data.backup.ChannelListDownloader {
+            com.gotv.player.data.backup.DownloadResult.Failure("Network timeout (HTTP error)")
+        }
+        val customVm = ChannelGridViewModel(
+            repository = repository,
+            channelListDownloader = failingDownloader
+        )
+        advanceUntilIdle()
+
+        customVm.onOpenImportUrlDialog()
+        customVm.onImportUrlChanged("https://example.com/channels.json")
+
+        customVm.onSubmitImportUrl()
+        advanceUntilIdle()
+
+        val state = customVm.uiState.value
+        assertTrue(state.isImportUrlDialogOpen)
+        assertFalse(state.isImportUrlLoading)
+        assertEquals("Network timeout (HTTP error)", state.importUrlError)
+        assertFalse(state.isImportConfirmDialogOpen)
+    }
+
+    @Test
+    fun submitImportUrl_whenJsonInvalid_surfacesParsingErrorAndKeepsDialogOpen() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        val invalidJsonDownloader = com.gotv.player.data.backup.ChannelListDownloader {
+            com.gotv.player.data.backup.DownloadResult.Success("Not valid JSON content")
+        }
+        val customVm = ChannelGridViewModel(
+            repository = repository,
+            channelListDownloader = invalidJsonDownloader
+        )
+        advanceUntilIdle()
+
+        customVm.onOpenImportUrlDialog()
+        customVm.onImportUrlChanged("https://example.com/invalid.json")
+
+        customVm.onSubmitImportUrl()
+        advanceUntilIdle()
+
+        val state = customVm.uiState.value
+        assertTrue(state.isImportUrlDialogOpen)
+        assertFalse(state.isImportUrlLoading)
+        assertEquals("Failed to parse JSON file", state.importUrlError)
+        assertFalse(state.isImportConfirmDialogOpen)
+    }
+
+    @Test
+    fun submitImportUrl_whenValidJson_dismissesUrlDialogAndOpensConfirmation() = runTest(testDispatcher) {
+        advanceUntilIdle()
+        val jsonPayload = """
+            {
+              "version": 1,
+              "channels": [
+                {
+                  "name": "Remote Channel 1",
+                  "streamUrls": ["https://remote.com/live.m3u8"]
+                }
+              ]
+            }
+        """.trimIndent()
+        val successDownloader = com.gotv.player.data.backup.ChannelListDownloader {
+            com.gotv.player.data.backup.DownloadResult.Success(jsonPayload)
+        }
+        val customVm = ChannelGridViewModel(
+            repository = repository,
+            channelListDownloader = successDownloader
+        )
+        advanceUntilIdle()
+
+        customVm.onOpenImportUrlDialog()
+        customVm.onImportUrlChanged("example.com/channels.json") // Auto normalizes to https://
+
+        customVm.onSubmitImportUrl()
+        advanceUntilIdle()
+
+        val state = customVm.uiState.value
+        assertFalse(state.isImportUrlDialogOpen)
+        assertFalse(state.isImportUrlLoading)
+        assertNull(state.importUrlError)
+        assertTrue(state.isImportConfirmDialogOpen)
+        assertEquals(1, state.pendingImportChannels.size)
+        assertEquals("Remote Channel 1", state.pendingImportChannels[0].name)
+
+        // Confirming replaces channels
+        customVm.onConfirmImport()
+        advanceUntilIdle()
+
+        val finalState = customVm.uiState.value
+        assertFalse(finalState.isImportConfirmDialogOpen)
+        assertEquals(1, finalState.channels.size)
+        assertEquals("Remote Channel 1", finalState.channels[0].name)
+        assertEquals("Successfully imported 1 channel", finalState.userFeedbackMessage)
+    }
 }
