@@ -2,6 +2,8 @@ package com.gotv.player.ui.player
 
 import com.gotv.player.testing.SlowTest
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -304,6 +306,101 @@ class PlayerScreenTest {
         // Advance past remaining timeout + exit animation
         composeTestRule.mainClock.advanceTimeBy(2_000L)
         composeTestRule.onNodeWithTag("volume_icon_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun immersiveFullscreen_hidesSystemBarsOnAutoDismiss_andRestoresOnInteraction() {
+        val fakeEngine = FakePlayerEngine()
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+        val systemBarsEvents = mutableListOf<Boolean>()
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                PlayerScreen(
+                    viewModel = viewModel,
+                    playerEngine = fakeEngine,
+                    onBack = {},
+                    onSystemBarsVisibilityChange = { systemBarsEvents.add(it) }
+                )
+            }
+        }
+
+        // Initially system bars are visible
+        assertEquals(listOf(true), systemBarsEvents)
+
+        // Wait until controls auto-dismiss after timeout
+        composeTestRule.mainClock.advanceTimeBy(CONTROLS_AUTO_DISMISS_MS + 1_000L)
+        // System bars are hidden (immersive fullscreen)
+        assertEquals(listOf(true, false), systemBarsEvents)
+
+        // Tap the screen
+        composeTestRule.onNodeWithTag("video_viewport").performClick()
+        composeTestRule.waitForIdle()
+        // System bars are restored
+        assertEquals(listOf(true, false, true), systemBarsEvents)
+    }
+
+    @Test
+    fun immersiveFullscreen_restoresSystemBarsOnPhysicalVolumeKey() {
+        val fakeEngine = FakePlayerEngine()
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+        val systemBarsEvents = mutableListOf<Boolean>()
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                PlayerScreen(
+                    viewModel = viewModel,
+                    playerEngine = fakeEngine,
+                    onBack = {},
+                    onSystemBarsVisibilityChange = { systemBarsEvents.add(it) }
+                )
+            }
+        }
+
+        // Wait until controls auto-dismiss
+        composeTestRule.mainClock.advanceTimeBy(CONTROLS_AUTO_DISMISS_MS + 1_000L)
+        assertEquals(listOf(true, false), systemBarsEvents)
+
+        // Press Volume Up
+        composeTestRule.onNodeWithTag("player_screen").performKeyInput {
+            pressKey(Key.VolumeUp)
+        }
+        composeTestRule.waitForIdle()
+
+        // System bars are restored
+        assertEquals(listOf(true, false, true), systemBarsEvents)
+    }
+
+    @Test
+    fun immersiveFullscreen_restoresSystemBarsOnExit() {
+        val fakeEngine = FakePlayerEngine()
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+        val systemBarsEvents = mutableListOf<Boolean>()
+        var showPlayer by androidx.compose.runtime.mutableStateOf(true)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                if (showPlayer) {
+                    PlayerScreen(
+                        viewModel = viewModel,
+                        playerEngine = fakeEngine,
+                        onBack = {},
+                        onSystemBarsVisibilityChange = { systemBarsEvents.add(it) }
+                    )
+                }
+            }
+        }
+
+        // Wait until controls auto-dismiss
+        composeTestRule.mainClock.advanceTimeBy(CONTROLS_AUTO_DISMISS_MS + 1_000L)
+        assertEquals(listOf(true, false), systemBarsEvents)
+
+        // Player leaves composition (back to grid)
+        showPlayer = false
+        composeTestRule.waitForIdle()
+
+        // System bars are restored
+        assertEquals(listOf(true, false, true), systemBarsEvents)
     }
 
     /** Runs pending main-looper work (view model coroutines) and advances the frozen compose clock. */
