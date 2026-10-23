@@ -57,6 +57,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gotv.player.data.model.Channel
+import com.gotv.player.ui.about.AboutDialog
 import com.gotv.player.ui.qr.QrScannerProvider
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,6 +82,7 @@ fun ChannelGridScreen(
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var hasDragged by remember { mutableStateOf(false) }
     var overflowMenuExpanded by remember { mutableStateOf(false) }
+    var isAboutDialogOpen by remember { mutableStateOf(false) }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -193,6 +195,14 @@ fun ChannelGridScreen(
                                 }
                             },
                             modifier = Modifier.testTag("menu_export_channels")
+                        )
+                        DropdownMenuItem(
+                            text = { Text("About") },
+                            onClick = {
+                                overflowMenuExpanded = false
+                                isAboutDialogOpen = true
+                            },
+                            modifier = Modifier.testTag("menu_about")
                         )
                     }
                 },
@@ -439,6 +449,12 @@ fun ChannelGridScreen(
                     )
                 }
             }
+        }
+
+        if (isAboutDialogOpen) {
+            AboutDialog(
+                onDismissRequest = { isAboutDialogOpen = false }
+            )
         }
     }
 }
