@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/jnmbk/gotv/compare/v1.2.0...v1.3.0) (2026-10-23)
+
+
+### Features
+
+* **player:** preserve volume level across channel changes ([404f18a](https://github.com/jnmbk/gotv/commit/404f18a331239f2b90a740875946c498201b7b72))
+* **player:** support physical volume keys to control player volume ([fb1570e](https://github.com/jnmbk/gotv/commit/fb1570ea919fdeec95ce8370deb4ea465ed2531f))
+
 ## [1.2.0](https://github.com/jnmbk/gotv/compare/v1.1.0...v1.2.0) (2026-10-23)
 
 
