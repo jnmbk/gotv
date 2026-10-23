@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/jnmbk/gotv/compare/v1.4.0...v1.4.1) (2026-10-23)
+
+
+### Performance Improvements
+
+* **build:** enable R8 minification and resource shrinking for release ([b83c35e](https://github.com/jnmbk/gotv/commit/b83c35eaadd7fc48c23e08b9fcbfb106914320d9))
+
 ## [1.4.0](https://github.com/jnmbk/gotv/compare/v1.3.0...v1.4.0) (2026-10-23)
 
 
