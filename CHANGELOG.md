@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.2.0](https://github.com/jnmbk/gotv/compare/v1.1.0...v1.2.0) (2026-10-23)
+
+
+### Features
+
+* **about:** add project repository string resources ([3a9235e](https://github.com/jnmbk/gotv/commit/3a9235e2e10fbe6b66b83dd97f0991645453b4d9))
+* **about:** add source code repository link to AboutDialog ([d9100ea](https://github.com/jnmbk/gotv/commit/d9100eaead98d88381f686b83874ebf23cf80b53))
+* **channel:** add ChannelListDownloader interface and HttpURLConnection implementation ([c6c701a](https://github.com/jnmbk/gotv/commit/c6c701aa004092e23a455da776764fed2eb7d170))
+* **channel:** add import URL state to ChannelGridUiState and QrScanTarget ([54de436](https://github.com/jnmbk/gotv/commit/54de43655079c15d8a51c4b342e5d839cf5b1527))
+* **channel:** add ImportFromUrlDialog and integrate into ChannelGridScreen ([7bcd2d8](https://github.com/jnmbk/gotv/commit/7bcd2d80fdefb78da457c9ba58faacef9cbc1c33))
+* **channel:** add URL import logic and state to ChannelGridViewModel ([6e8d2e1](https://github.com/jnmbk/gotv/commit/6e8d2e1da8ccfb974494b210cf7ff96e49176985))
+* **channel:** make isValidHttpUrl public in ChannelValidator ([e0c4afa](https://github.com/jnmbk/gotv/commit/e0c4afafffca3efde9f0321b6b886c581b7fe622))
+* **i18n:** add Turkish translations ([00afd9a](https://github.com/jnmbk/gotv/commit/00afd9a9390497c45ca0111f8d6ca9b69e5917d5))
+* **i18n:** extract UI strings and plurals to strings.xml ([1e391fc](https://github.com/jnmbk/gotv/commit/1e391fcc02e0d3816c211cc6e299775f544f6012))
+* **player:** display channel logo in player loading and error overlays ([2776e5c](https://github.com/jnmbk/gotv/commit/2776e5c5d571d98442e2a08e74f8b7c5617923d3))
+* **ui:** add UiText wrapper for translatable strings and plurals ([a2d7526](https://github.com/jnmbk/gotv/commit/a2d7526777143e81816467c734abb11a66df4c37))
+* **ui:** resolve strings and content descriptions from resources across UI components ([b0eada5](https://github.com/jnmbk/gotv/commit/b0eada5568a591944a05d01ffc1f653554d5d335))
+
+
+### Bug Fixes
+
+* **player:** rebind video surface when switching channels ([81908c4](https://github.com/jnmbk/gotv/commit/81908c456e429e9b3b2e0c79c84f1f8ced88e325))
+* unittest errors ([a32034c](https://github.com/jnmbk/gotv/commit/a32034ca1051412c5702e6581a6e51a0146e8b5f))
+
 ## [1.1.0](https://github.com/jnmbk/gotv/compare/v1.0.0...v1.1.0) (2026-10-23)
 
 
