@@ -1,4 +1,4 @@
-Status: open
+Status: resolved
 
 # Extract Hardcoded Strings & Add UiText Support
 
@@ -8,8 +8,8 @@ Extract all user-facing strings across UI components, dialogs, and ViewModels in
 
 ## Tasks
 
-- [ ] Create `UiText` utility class supporting `DynamicString`, `StringResource`, and `PluralResource`.
-- [ ] Extract all hardcoded strings from `AddChannelDialog`, `EmptyChannelsView`, `ChannelGridScreen`, `PlayerScreen`, `ChannelSidebar`, and `AndroidQrScannerProvider` into `values/strings.xml`.
-- [ ] Add plural string resource for channel import feedback (`channel_import_success_count`).
-- [ ] Refactor `ChannelGridUiState` and `ChannelGridViewModel` to use `UiText` for validation errors and feedback messages.
-- [ ] Update Compose components to resolve strings using `stringResource()` or `UiText.asString()`.
+- [x] Create `UiText` utility class supporting `DynamicString`, `StringResource`, and `PluralResource`.
+- [x] Extract all hardcoded strings from `AddChannelDialog`, `EmptyChannelsView`, `ChannelGridScreen`, `PlayerScreen`, `ChannelSidebar`, and `AndroidQrScannerProvider` into `values/strings.xml`.
+- [x] Add plural string resource for channel import feedback (`channel_import_success_count`).
+- [x] Refactor `ChannelGridUiState` and `ChannelGridViewModel` to use `UiText` for validation errors and feedback messages.
+- [x] Update Compose components to resolve strings using `stringResource()` or `UiText.asString()`.
