@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.gotv.player.data.backup.ChannelImportResult
 import com.gotv.player.data.backup.ChannelJsonSerializer
+import com.gotv.player.data.backup.ChannelListDownloader
+import com.gotv.player.data.backup.DownloadResult
+import com.gotv.player.data.backup.HttpChannelListDownloader
 import com.gotv.player.data.model.Channel
 import com.gotv.player.data.model.ChannelValidator
 import com.gotv.player.data.repository.ChannelRepository
@@ -22,7 +25,8 @@ import java.util.UUID
  */
 class ChannelGridViewModel(
     private val repository: ChannelRepository,
-    private val logoStorage: LogoStorage? = null
+    private val logoStorage: LogoStorage? = null,
+    private val channelListDownloader: ChannelListDownloader = HttpChannelListDownloader()
 ) : ViewModel() {
 
     private val _dialogState = MutableStateFlow(DialogState())
@@ -52,7 +56,11 @@ class ChannelGridViewModel(
             logoReloadVersions = logoVersions,
             isImportConfirmDialogOpen = dialog.isImportConfirmDialogOpen,
             pendingImportChannels = dialog.pendingImportChannels,
-            userFeedbackMessage = dialog.userFeedbackMessage
+            userFeedbackMessage = dialog.userFeedbackMessage,
+            isImportUrlDialogOpen = dialog.isImportUrlDialogOpen,
+            importUrlInput = dialog.importUrlInput,
+            importUrlError = dialog.importUrlError,
+            isImportUrlLoading = dialog.isImportUrlLoading
         )
     }.stateIn(
         scope = viewModelScope,
@@ -174,6 +182,12 @@ class ChannelGridViewModel(
                 qrScanTarget = null,
                 logoUrl = ChannelValidator.stripDuplicateScheme(rawText),
                 logoUrlError = null
+            )
+            is QrScanTarget.ImportUrl -> current.copy(
+                isQrScannerOpen = false,
+                qrScanTarget = null,
+                importUrlInput = ChannelValidator.stripDuplicateScheme(rawText),
+                importUrlError = null
             )
         }
     }
@@ -413,6 +427,87 @@ class ChannelGridViewModel(
         }
     }
 
+    fun onOpenImportUrlDialog() {
+        _dialogState.value = _dialogState.value.copy(
+            isImportUrlDialogOpen = true,
+            importUrlInput = ChannelValidator.DEFAULT_URL_PREFIX,
+            importUrlError = null,
+            isImportUrlLoading = false
+        )
+    }
+
+    fun onDismissImportUrlDialog() {
+        _dialogState.value = _dialogState.value.copy(
+            isImportUrlDialogOpen = false,
+            importUrlInput = "",
+            importUrlError = null,
+            isImportUrlLoading = false
+        )
+    }
+
+    fun onImportUrlChanged(url: String) {
+        _dialogState.value = _dialogState.value.copy(
+            importUrlInput = ChannelValidator.stripDuplicateScheme(url),
+            importUrlError = null
+        )
+    }
+
+    fun onClearImportUrl() {
+        _dialogState.value = _dialogState.value.copy(
+            importUrlInput = "",
+            importUrlError = null
+        )
+    }
+
+    fun onSubmitImportUrl() {
+        val current = _dialogState.value
+        if (current.isImportUrlLoading) return
+
+        val normalizedUrl = ChannelValidator.normalizeUrl(current.importUrlInput)
+        if (normalizedUrl.isEmpty()) {
+            _dialogState.value = current.copy(importUrlError = "URL cannot be empty")
+            return
+        }
+
+        if (!ChannelValidator.isValidHttpUrl(normalizedUrl)) {
+            _dialogState.value = current.copy(importUrlError = "Please enter a valid URL")
+            return
+        }
+
+        _dialogState.value = current.copy(isImportUrlLoading = true, importUrlError = null)
+
+        viewModelScope.launch {
+            when (val downloadResult = channelListDownloader.download(normalizedUrl)) {
+                is DownloadResult.Failure -> {
+                    _dialogState.value = _dialogState.value.copy(
+                        isImportUrlLoading = false,
+                        importUrlError = downloadResult.reason
+                    )
+                }
+                is DownloadResult.Success -> {
+                    when (val parseResult = ChannelJsonSerializer.importChannels(downloadResult.content)) {
+                        is ChannelImportResult.Failure -> {
+                            _dialogState.value = _dialogState.value.copy(
+                                isImportUrlLoading = false,
+                                importUrlError = parseResult.reason
+                            )
+                        }
+                        is ChannelImportResult.Success -> {
+                            _dialogState.value = _dialogState.value.copy(
+                                isImportUrlDialogOpen = false,
+                                isImportUrlLoading = false,
+                                importUrlInput = "",
+                                importUrlError = null,
+                                pendingImportChannels = parseResult.channels,
+                                isImportConfirmDialogOpen = true
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fun onConfirmImport() {
         val channelsToImport = _dialogState.value.pendingImportChannels
         if (channelsToImport.isEmpty()) return
@@ -482,16 +577,21 @@ class ChannelGridViewModel(
         val deletingChannel: Channel? = null,
         val isImportConfirmDialogOpen: Boolean = false,
         val pendingImportChannels: List<Channel> = emptyList(),
-        val userFeedbackMessage: String? = null
+        val userFeedbackMessage: String? = null,
+        val isImportUrlDialogOpen: Boolean = false,
+        val importUrlInput: String = "",
+        val importUrlError: String? = null,
+        val isImportUrlLoading: Boolean = false
     )
 
     class Factory(
         private val repository: ChannelRepository,
-        private val logoStorage: LogoStorage? = null
+        private val logoStorage: LogoStorage? = null,
+        private val channelListDownloader: ChannelListDownloader = HttpChannelListDownloader()
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ChannelGridViewModel(repository, logoStorage) as T
+            return ChannelGridViewModel(repository, logoStorage, channelListDownloader) as T
         }
     }
 }
