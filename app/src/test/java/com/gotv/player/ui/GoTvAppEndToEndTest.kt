@@ -89,4 +89,66 @@ class GoTvAppEndToEndTest {
         assertTrue("Player engine must be released upon navigating back to grid", engine.isReleased)
         assertEquals(1, engine.releaseCount)
     }
+
+    @Test
+    fun volume_isPreservedAcrossChannelChanges() = runBlocking {
+        val channel1 = Channel(
+            id = "test-live-channel-1",
+            name = "Bloomberg HD",
+            streamUrl = "https://live.bloomberg.com/stream.m3u8"
+        )
+        val channel2 = Channel(
+            id = "test-live-channel-2",
+            name = "CNN HD",
+            streamUrl = "https://live.cnn.com/stream.m3u8"
+        )
+        val channelRepository = InMemoryChannelRepository()
+        channelRepository.addChannel(channel1)
+        channelRepository.addChannel(channel2)
+
+        val createdEngines = mutableListOf<FakePlayerEngine>()
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                GoTvApp(
+                    channelRepository = channelRepository,
+                    logoStorage = null,
+                    playerEngineFactory = {
+                        FakePlayerEngine().also { createdEngines.add(it) }
+                    }
+                )
+            }
+        }
+
+        // Open channel 1
+        composeTestRule.onNodeWithText("Bloomberg HD").performClick()
+        composeTestRule.onNodeWithTag("player_screen").assertIsDisplayed()
+        val engine1 = createdEngines.first()
+        assertEquals(1.0f, engine1.volume.value, 0.001f)
+
+        // Mute volume on channel 1 (volume becomes 0.0f)
+        composeTestRule.onNodeWithTag("volume_icon_button").performClick()
+        composeTestRule.waitForIdle()
+        assertEquals(0.0f, engine1.volume.value, 0.001f)
+
+        // Go back to grid
+        composeTestRule.onNodeWithTag("player_back_button").performClick()
+        composeTestRule.onNodeWithTag("channel_grid_screen").assertIsDisplayed()
+
+        // Open channel 2
+        composeTestRule.onNodeWithText("CNN HD").performClick()
+        composeTestRule.onNodeWithTag("player_screen").assertIsDisplayed()
+        val engine2 = createdEngines.last()
+
+        // Volume should remain at 0.0f, not reset to 1.0f
+        assertEquals(0.0f, engine2.volume.value, 0.001f)
+
+        // Switch back to channel 1 via the sidebar
+        composeTestRule.onNodeWithTag("video_viewport").performClick()
+        composeTestRule.onNodeWithTag("sidebar_channel_test-live-channel-1").performClick()
+        composeTestRule.waitForIdle()
+
+        val engine3 = createdEngines.last()
+        assertEquals(0.0f, engine3.volume.value, 0.001f)
+    }
 }

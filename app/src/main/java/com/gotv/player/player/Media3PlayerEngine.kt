@@ -33,13 +33,14 @@ internal fun reducePlaybackState(current: PlaybackState, exoPlayerState: Int): P
 
 class Media3PlayerEngine(
     context: Context,
+    initialVolume: Float = 1.0f,
     private val exoPlayer: ExoPlayer = createLowRamExoPlayer(context)
 ) : PlayerEngine {
 
     private val _playbackState = MutableStateFlow(PlaybackState(PlaybackStatus.IDLE))
     override val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
-    private val _volume = MutableStateFlow(exoPlayer.volume.coerceIn(0f, 1f))
+    private val _volume = MutableStateFlow(initialVolume.coerceIn(0f, 1f))
     override val volume: StateFlow<Float> = _volume.asStateFlow()
 
     private var _isReleased: Boolean = false
@@ -69,6 +70,7 @@ class Media3PlayerEngine(
     init {
         exoPlayer.addListener(listener)
         exoPlayer.playWhenReady = true
+        exoPlayer.volume = initialVolume.coerceIn(0f, 1f)
     }
 
     override fun play(streamUrl: String) {

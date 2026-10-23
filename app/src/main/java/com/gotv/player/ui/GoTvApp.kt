@@ -1,11 +1,14 @@
 package com.gotv.player.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.gotv.player.data.backup.ChannelListDownloader
@@ -33,6 +36,7 @@ fun GoTvApp(
     channelListDownloader: ChannelListDownloader = HttpChannelListDownloader()
 ) {
     var activeChannel by remember { mutableStateOf<Channel?>(null) }
+    var currentVolume by rememberSaveable { mutableFloatStateOf(1.0f) }
     val channelViewModel = remember(channelRepository, logoStorage, channelListDownloader) {
         ChannelGridViewModel(
             repository = channelRepository,
@@ -54,7 +58,14 @@ fun GoTvApp(
         )
     } else {
         val session = remember(currentChannel.id) {
-            PlayerSession(currentChannel, playerEngineFactory, networkMonitor, channelRepository)
+            val engine = playerEngineFactory().apply { setVolume(currentVolume) }
+            PlayerSession(currentChannel, engine, networkMonitor, channelRepository)
+        }
+
+        LaunchedEffect(session.engine) {
+            session.engine.volume.collect { volume ->
+                currentVolume = volume
+            }
         }
 
         PlayerScreen(
@@ -76,11 +87,10 @@ fun GoTvApp(
  */
 private class PlayerSession(
     channel: Channel,
-    engineFactory: () -> PlayerEngine,
+    val engine: PlayerEngine,
     networkMonitor: NetworkMonitor,
     channelRepository: ChannelRepository? = null
 ) : RememberObserver {
-    val engine: PlayerEngine = engineFactory()
     val viewModel = PlayerViewModel(channel, engine, networkMonitor, channelRepository = channelRepository)
 
     override fun onRemembered() = Unit

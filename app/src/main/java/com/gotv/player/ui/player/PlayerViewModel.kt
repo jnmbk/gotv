@@ -60,7 +60,7 @@ class PlayerViewModel(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = PlayerUiState(channel = channel)
+        initialValue = PlayerUiState(channel = channel, volume = playerEngine.volume.value)
     )
 
     init {

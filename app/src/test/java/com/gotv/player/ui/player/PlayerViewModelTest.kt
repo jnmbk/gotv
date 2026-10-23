@@ -48,6 +48,13 @@ class PlayerViewModelTest {
     }
 
     @Test
+    fun init_reflectsInitialEngineVolume() = runTest {
+        val customEngine = FakePlayerEngine(initialVolume = 0.42f)
+        val viewModel = PlayerViewModel(testChannel, customEngine)
+        assertEquals(0.42f, viewModel.uiState.value.volume, 0.001f)
+    }
+
+    @Test
     fun setVolume_delegatesToEngine() = runTest {
         val viewModel = PlayerViewModel(testChannel, fakeEngine)
         testDispatcher.scheduler.advanceUntilIdle()
