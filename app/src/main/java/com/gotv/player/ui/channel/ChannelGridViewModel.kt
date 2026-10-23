@@ -3,6 +3,7 @@ package com.gotv.player.ui.channel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.gotv.player.R
 import com.gotv.player.data.backup.ChannelImportResult
 import com.gotv.player.data.backup.ChannelJsonSerializer
 import com.gotv.player.data.backup.ChannelListDownloader
@@ -12,6 +13,7 @@ import com.gotv.player.data.model.Channel
 import com.gotv.player.data.model.ChannelValidator
 import com.gotv.player.data.repository.ChannelRepository
 import com.gotv.player.data.storage.LogoStorage
+import com.gotv.player.ui.util.UiText
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -258,9 +260,16 @@ class ChannelGridViewModel(
 
         if (!validation.isValid) {
             _dialogState.value = current.copy(
-                nameError = validation.nameError,
-                streamUrlsErrors = validation.streamUrlsErrors,
-                logoUrlError = validation.logoUrlError
+                nameError = validation.nameError?.let { UiText.StringResource(R.string.error_channel_name_empty) },
+                streamUrlsErrors = validation.streamUrlsErrors.map { err ->
+                    when (err) {
+                        "Stream URL cannot be empty" -> UiText.StringResource(R.string.error_stream_url_empty)
+                        "Please enter a valid stream URL" -> UiText.StringResource(R.string.error_stream_url_invalid)
+                        null -> null
+                        else -> UiText.DynamicString(err)
+                    }
+                },
+                logoUrlError = validation.logoUrlError?.let { UiText.StringResource(R.string.error_logo_url_invalid) }
             )
             return false
         }
@@ -421,7 +430,7 @@ class ChannelGridViewModel(
             }
             is ChannelImportResult.Failure -> {
                 _dialogState.value = _dialogState.value.copy(
-                    userFeedbackMessage = result.reason
+                    userFeedbackMessage = UiText.DynamicString(result.reason)
                 )
             }
         }
@@ -465,12 +474,12 @@ class ChannelGridViewModel(
 
         val normalizedUrl = ChannelValidator.normalizeUrl(current.importUrlInput)
         if (normalizedUrl.isEmpty()) {
-            _dialogState.value = current.copy(importUrlError = "URL cannot be empty")
+            _dialogState.value = current.copy(importUrlError = UiText.StringResource(R.string.error_import_url_empty))
             return
         }
 
         if (!ChannelValidator.isValidHttpUrl(normalizedUrl)) {
-            _dialogState.value = current.copy(importUrlError = "Please enter a valid URL")
+            _dialogState.value = current.copy(importUrlError = UiText.StringResource(R.string.error_import_url_invalid))
             return
         }
 
@@ -481,7 +490,7 @@ class ChannelGridViewModel(
                 is DownloadResult.Failure -> {
                     _dialogState.value = _dialogState.value.copy(
                         isImportUrlLoading = false,
-                        importUrlError = downloadResult.reason
+                        importUrlError = UiText.DynamicString(downloadResult.reason)
                     )
                 }
                 is DownloadResult.Success -> {
@@ -489,7 +498,7 @@ class ChannelGridViewModel(
                         is ChannelImportResult.Failure -> {
                             _dialogState.value = _dialogState.value.copy(
                                 isImportUrlLoading = false,
-                                importUrlError = parseResult.reason
+                                importUrlError = UiText.DynamicString(parseResult.reason)
                             )
                         }
                         is ChannelImportResult.Success -> {
@@ -520,7 +529,10 @@ class ChannelGridViewModel(
         viewModelScope.launch {
             repository.replaceAllChannels(channelsToImport)
             val count = channelsToImport.size
-            val feedback = if (count == 1) "Successfully imported 1 channel" else "Successfully imported $count channels"
+            val feedback = UiText.PluralResource(
+                resId = R.plurals.channel_import_success_count,
+                count = count
+            )
             _dialogState.value = _dialogState.value.copy(userFeedbackMessage = feedback)
 
             if (logoStorage != null) {
@@ -550,9 +562,13 @@ class ChannelGridViewModel(
 
     fun onExportComplete(success: Boolean, errorMessage: String? = null) {
         val feedback = if (success) {
-            "Channels exported successfully"
+            UiText.StringResource(R.string.feedback_export_success)
         } else {
-            errorMessage ?: "Failed to export channels"
+            if (errorMessage != null) {
+                UiText.DynamicString(errorMessage)
+            } else {
+                UiText.StringResource(R.string.feedback_export_failed)
+            }
         }
         _dialogState.value = _dialogState.value.copy(userFeedbackMessage = feedback)
     }
@@ -567,20 +583,20 @@ class ChannelGridViewModel(
         val name: String = "",
         val streamUrls: List<String> = emptyList(),
         val logoUrl: String = "",
-        val nameError: String? = null,
-        val streamUrlsErrors: List<String?> = emptyList(),
-        val logoUrlError: String? = null,
+        val nameError: UiText? = null,
+        val streamUrlsErrors: List<UiText?> = emptyList(),
+        val logoUrlError: UiText? = null,
         val selectedChannel: Channel? = null,
         val isQrScannerOpen: Boolean = false,
         val qrScanTarget: QrScanTarget? = null,
-        val qrError: String? = null,
+        val qrError: UiText? = null,
         val deletingChannel: Channel? = null,
         val isImportConfirmDialogOpen: Boolean = false,
         val pendingImportChannels: List<Channel> = emptyList(),
-        val userFeedbackMessage: String? = null,
+        val userFeedbackMessage: UiText? = null,
         val isImportUrlDialogOpen: Boolean = false,
         val importUrlInput: String = "",
-        val importUrlError: String? = null,
+        val importUrlError: UiText? = null,
         val isImportUrlLoading: Boolean = false
     )
 

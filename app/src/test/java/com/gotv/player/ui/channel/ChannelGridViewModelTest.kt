@@ -1,5 +1,7 @@
 package com.gotv.player.ui.channel
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.gotv.player.data.model.Channel
 import com.gotv.player.data.repository.InMemoryChannelRepository
 import com.gotv.player.data.storage.InMemoryLogoStorage
@@ -19,16 +21,21 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class ChannelGridViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
+    private lateinit var context: Context
     private lateinit var repository: InMemoryChannelRepository
     private lateinit var viewModel: ChannelGridViewModel
 
     @Before
     fun setUp() {
+        context = ApplicationProvider.getApplicationContext()
         Dispatchers.setMain(testDispatcher)
         repository = InMemoryChannelRepository()
         viewModel = ChannelGridViewModel(repository)
@@ -93,7 +100,7 @@ class ChannelGridViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state.isAddDialogOpen)
-        assertEquals("Channel name cannot be empty", state.nameError)
+        assertEquals("Channel name cannot be empty", state.nameError?.asString(context))
         assertNotNull(state.streamUrlError)
         assertTrue(state.channels.isEmpty())
     }
@@ -610,8 +617,11 @@ class ChannelGridViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state.isAddDialogOpen)
-        assertEquals(listOf(null, "Please enter a valid stream URL"), state.streamUrlsErrors)
-        assertEquals("Please enter a valid stream URL", state.streamUrlError)
+        assertEquals(
+            listOf(null, "Please enter a valid stream URL"),
+            state.streamUrlsErrors.map { it?.asString(context) }
+        )
+        assertEquals("Please enter a valid stream URL", state.streamUrlError?.asString(context))
         assertTrue(state.channels.isEmpty())
     }
 
@@ -742,7 +752,7 @@ class ChannelGridViewModelTest {
         assertEquals(2, state.channels.size)
         assertEquals("Imported 1", state.channels[0].name)
         assertEquals("Imported 2", state.channels[1].name)
-        assertEquals("Successfully imported 2 channels", state.userFeedbackMessage)
+        assertEquals("Successfully imported 2 channels", state.userFeedbackMessage?.asString(context))
     }
 
     @Test
@@ -796,11 +806,11 @@ class ChannelGridViewModelTest {
         advanceUntilIdle()
         viewModel.onExportComplete(true)
         advanceUntilIdle()
-        assertEquals("Channels exported successfully", viewModel.uiState.value.userFeedbackMessage)
+        assertEquals("Channels exported successfully", viewModel.uiState.value.userFeedbackMessage?.asString(context))
 
         viewModel.onExportComplete(false, "Write failed")
         advanceUntilIdle()
-        assertEquals("Write failed", viewModel.uiState.value.userFeedbackMessage)
+        assertEquals("Write failed", viewModel.uiState.value.userFeedbackMessage?.asString(context))
     }
 
     @Test
@@ -870,7 +880,7 @@ class ChannelGridViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state.isImportUrlDialogOpen)
-        assertEquals("URL cannot be empty", state.importUrlError)
+        assertEquals("URL cannot be empty", state.importUrlError?.asString(context))
         assertFalse(state.isImportUrlLoading)
     }
 
@@ -884,7 +894,7 @@ class ChannelGridViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state.isImportUrlDialogOpen)
-        assertEquals("URL cannot be empty", state.importUrlError)
+        assertEquals("URL cannot be empty", state.importUrlError?.asString(context))
         assertFalse(state.isImportUrlLoading)
     }
 
@@ -899,7 +909,7 @@ class ChannelGridViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state.isImportUrlDialogOpen)
-        assertEquals("Please enter a valid URL", state.importUrlError)
+        assertEquals("Please enter a valid URL", state.importUrlError?.asString(context))
         assertFalse(state.isImportUrlLoading)
     }
 
@@ -924,7 +934,7 @@ class ChannelGridViewModelTest {
         val state = customVm.uiState.value
         assertTrue(state.isImportUrlDialogOpen)
         assertFalse(state.isImportUrlLoading)
-        assertEquals("Network timeout (HTTP error)", state.importUrlError)
+        assertEquals("Network timeout (HTTP error)", state.importUrlError?.asString(context))
         assertFalse(state.isImportConfirmDialogOpen)
     }
 
@@ -949,7 +959,7 @@ class ChannelGridViewModelTest {
         val state = customVm.uiState.value
         assertTrue(state.isImportUrlDialogOpen)
         assertFalse(state.isImportUrlLoading)
-        assertEquals("Failed to parse JSON file", state.importUrlError)
+        assertEquals("Failed to parse JSON file", state.importUrlError?.asString(context))
         assertFalse(state.isImportConfirmDialogOpen)
     }
 
@@ -998,6 +1008,6 @@ class ChannelGridViewModelTest {
         assertFalse(finalState.isImportConfirmDialogOpen)
         assertEquals(1, finalState.channels.size)
         assertEquals("Remote Channel 1", finalState.channels[0].name)
-        assertEquals("Successfully imported 1 channel", finalState.userFeedbackMessage)
+        assertEquals("Successfully imported 1 channel", finalState.userFeedbackMessage?.asString(context))
     }
 }
