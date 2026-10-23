@@ -4,7 +4,7 @@
 
 **Blocked by:** 03-dialog-ui-and-menu-integration
 
-**Status:** open
+**Status:** resolved
 
 ## Design Details
 1. Create end-to-end Compose / Robolectric tests for the URL import flow:
@@ -14,7 +14,9 @@
 2. Verify all existing tests and new tests pass cleanly with `./gradlew test`.
 
 ## Acceptance Criteria
-- [ ] End-to-end integration tests for happy path and error paths.
-- [ ] QR code scanning end-to-end test for import URL input.
-- [ ] Full test suite passes without regressions.
+- [x] End-to-end integration tests for happy path and error paths.
+- [x] QR code scanning end-to-end test for import URL input.
+- [x] Full test suite passes without regressions.
 
+## Comments
+Added `GoTvAppUrlImportEndToEndTest` covering the complete URL import flow from top-bar overflow menu trigger, QR scan URL population, network error handling with inline messages, and success flow including replacement confirmation dialog, database update, and feedback snackbar. Wired `channelListDownloader` parameter into `GoTvApp` with default `HttpChannelListDownloader` to facilitate injection in tests. Verified full test suite (`./gradlew testDebugUnitTest -PslowTests`) passed cleanly.
