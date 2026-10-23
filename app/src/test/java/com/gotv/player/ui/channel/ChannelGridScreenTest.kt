@@ -728,6 +728,37 @@ class ChannelGridScreenTest {
         composeTestRule.onNodeWithTag("channel_overflow_menu_button").assertIsDisplayed().performClick()
         composeTestRule.onNodeWithTag("menu_import_channels").assertIsDisplayed().assertTextContains("Import channels")
         composeTestRule.onNodeWithTag("menu_export_channels").assertIsDisplayed().assertTextContains("Export channels")
+        composeTestRule.onNodeWithTag("menu_about").assertIsDisplayed().assertTextContains("About")
+    }
+
+    @Test
+    fun overflowMenu_clickingAbout_opensAboutDialogAndDismissClosesIt() {
+        val repository = InMemoryChannelRepository()
+        val viewModel = ChannelGridViewModel(repository)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel)
+            }
+        }
+
+        // About dialog should not be displayed initially
+        composeTestRule.onNodeWithTag("about_dialog").assertDoesNotExist()
+
+        // Open overflow menu and click About
+        composeTestRule.onNodeWithTag("channel_overflow_menu_button").performClick()
+        composeTestRule.onNodeWithTag("menu_about").performClick()
+
+        // Verify About dialog is displayed with required details
+        composeTestRule.onNodeWithTag("about_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("about_dialog_title").assertIsDisplayed().assertTextContains("GoTV")
+        composeTestRule.onNodeWithTag("about_dialog_version").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("about_dialog_author_link").assertIsDisplayed().assertTextContains("Uğur Çetin")
+        composeTestRule.onNodeWithTag("about_dialog_license_link").assertIsDisplayed().assertTextContains("Apache License 2.0")
+
+        // Dismiss dialog
+        composeTestRule.onNodeWithTag("about_dialog_dismiss_button").performClick()
+        composeTestRule.onNodeWithTag("about_dialog").assertDoesNotExist()
     }
 
     @Test
