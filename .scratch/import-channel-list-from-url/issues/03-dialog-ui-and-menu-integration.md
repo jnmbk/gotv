@@ -4,7 +4,7 @@
 
 **Blocked by:** 02-viewmodel-state-and-logic
 
-**Status:** open
+**Status:** resolved
 
 ## Design Details
 1. **Overflow Menu:**
@@ -21,8 +21,10 @@
 4. Compose tests validating dialog rendering, button interactions, error state display, and loading indicator.
 
 ## Acceptance Criteria
-- [ ] Top bar overflow menu includes "Import from URL".
-- [ ] Dialog allows typing, clearing, and QR scanning a URL.
-- [ ] Inline errors and loading spinner are displayed accurately.
-- [ ] UI / Compose tests covering dialog actions and state transitions.
+- [x] Top bar overflow menu includes "Import from URL".
+- [x] Dialog allows typing, clearing, and QR scanning a URL.
+- [x] Inline errors and loading spinner are displayed accurately.
+- [x] UI / Compose tests covering dialog actions and state transitions.
 
+## Answer
+Implemented `ImportFromUrlDialog` composable featuring the URL text input, clear button, QR scanner button, inline error supporting text, and loading progress indicator with disabled controls during network loading. Integrated the "Import from URL" option in `ChannelGridScreen`'s overflow menu and wired the QR scanner target to `QrScanTarget.ImportUrl`. Added automated tests verifying UI rendering, QR scan targeting, clear action, inline errors, and loading state.
