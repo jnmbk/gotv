@@ -185,6 +185,14 @@ fun ChannelGridScreen(
                             modifier = Modifier.testTag("menu_import_channels")
                         )
                         DropdownMenuItem(
+                            text = { Text("Import from URL") },
+                            onClick = {
+                                overflowMenuExpanded = false
+                                viewModel.onOpenImportUrlDialog()
+                            },
+                            modifier = Modifier.testTag("menu_import_from_url")
+                        )
+                        DropdownMenuItem(
                             text = { Text("Export channels") },
                             onClick = {
                                 overflowMenuExpanded = false
@@ -436,7 +444,19 @@ fun ChannelGridScreen(
             )
         }
 
-        if (uiState.isAddDialogOpen && uiState.isQrScannerOpen && qrScanner != null) {
+        if (uiState.isImportUrlDialogOpen) {
+            ImportFromUrlDialog(
+                uiState = uiState,
+                onUrlChange = viewModel::onImportUrlChanged,
+                onClearUrl = viewModel::onClearImportUrl,
+                onSubmit = viewModel::onSubmitImportUrl,
+                onDismiss = viewModel::onDismissImportUrlDialog,
+                qrScanner = qrScanner,
+                onScanQr = { viewModel.onOpenQrScanner(QrScanTarget.ImportUrl) }
+            )
+        }
+
+        if ((uiState.isAddDialogOpen || uiState.isImportUrlDialogOpen) && uiState.isQrScannerOpen && qrScanner != null) {
             Dialog(
                 onDismissRequest = viewModel::onCloseQrScanner,
                 properties = DialogProperties(usePlatformDefaultWidth = false)
