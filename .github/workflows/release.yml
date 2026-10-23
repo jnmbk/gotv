@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag to attach APK to (e.g. v1.3.0)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -27,7 +33,7 @@ jobs:
           manifest-file: .release-please-manifest.json
 
       - name: Set up JDK 17
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        if: ${{ steps.release.outputs.releases_created == 'true' || inputs.tag_name != '' }}
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -35,11 +41,11 @@ jobs:
           cache: 'gradle'
 
       - name: Grant execute permission for gradlew
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        if: ${{ steps.release.outputs.releases_created == 'true' || inputs.tag_name != '' }}
         run: chmod +x gradlew
 
       - name: Build release APK
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        if: ${{ steps.release.outputs.releases_created == 'true' || inputs.tag_name != '' }}
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -47,17 +53,21 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-            export KEYSTORE_FILE="$PWD/release.keystore"
+            if echo "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > release.keystore 2>/dev/null && [ -s release.keystore ]; then
+              export KEYSTORE_FILE="$PWD/release.keystore"
+            else
+              echo "::warning::Failed to decode KEYSTORE_BASE64 into release.keystore. Falling back to debug signing."
+              rm -f release.keystore
+            fi
           fi
           ./gradlew assembleRelease
 
       - name: Upload Release APK Asset
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        if: ${{ steps.release.outputs.releases_created == 'true' || inputs.tag_name != '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ steps.release.outputs.tag_name }}"
+          TAG="${{ steps.release.outputs.tag_name || inputs.tag_name }}"
           APK_NAME="gotv-${TAG}.apk"
           # Locate built release apk (signed app-release.apk, or fallback app-release-unsigned.apk)
           APK_PATH=$(find app/build/outputs/apk/release/ -maxdepth 1 -name "app-release*.apk" | head -n 1)
