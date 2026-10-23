@@ -36,4 +36,13 @@ class UiTextTest {
         val text = UiText.StringResource(R.string.about_version_format, "1.0.0")
         assertEquals("v1.0.0", text.asString(context))
     }
+
+    @Test
+    fun pluralResource_resolvesCorrectPluralString() {
+        val single = UiText.PluralResource(R.plurals.channel_import_success_count, 1)
+        assertEquals("Successfully imported 1 channel", single.asString(context))
+
+        val plural = UiText.PluralResource(R.plurals.channel_import_success_count, 5)
+        assertEquals("Successfully imported 5 channels", plural.asString(context))
+    }
 }

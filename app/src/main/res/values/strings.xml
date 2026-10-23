@@ -1,7 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App & Navigation -->
     <string name="app_name">GoTV</string>
+    <string name="action_add_channel">Add Channel</string>
+    <string name="action_more_options">More options</string>
+
+    <!-- Menu Items -->
+    <string name="menu_import_channels">Import channels</string>
+    <string name="menu_import_from_url">Import from URL</string>
+    <string name="menu_export_channels">Export channels</string>
     <string name="menu_about">About</string>
+
+    <!-- Empty State -->
+    <string name="empty_channels_title">No channels yet</string>
+    <string name="empty_channels_message">Add your first IPTV channel to start watching live streams.</string>
+
+    <!-- Add/Edit Channel Dialog -->
+    <string name="dialog_add_channel_title">Add Channel</string>
+    <string name="dialog_edit_channel_title">Edit Channel</string>
+    <string name="dialog_channel_name_label">Channel Name</string>
+    <string name="dialog_stream_url_label">Stream URL</string>
+    <string name="dialog_backup_stream_url_label">Backup Stream URL %1$d</string>
+    <string name="dialog_stream_url_placeholder">https://example.com/live.m3u8</string>
+    <string name="dialog_logo_url_label">Logo URL (Optional)</string>
+    <string name="dialog_logo_url_placeholder">https://example.com/logo.png</string>
+    <string name="dialog_add_stream_url_button">Add Stream URL</string>
+    <string name="action_save">Save</string>
+    <string name="action_add">Add</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_proceed">Proceed</string>
+
+    <!-- Context Menu & Tile Actions -->
+    <string name="context_menu_edit">Edit Channel</string>
+    <string name="context_menu_redownload_logo">Redownload Logo</string>
+    <string name="context_menu_delete">Delete Channel</string>
+
+    <!-- Delete Confirmation Dialog -->
+    <string name="dialog_delete_channel_title">Delete %1$s?</string>
+    <string name="dialog_delete_channel_message">Are you sure you want to remove %1$s?</string>
+
+    <!-- Import / Export Confirmation & Feedback -->
+    <string name="dialog_import_confirm_title">Replace all channels?</string>
+    <string name="dialog_import_confirm_message">This will replace all current channels. Proceed?</string>
+    <string name="feedback_export_success">Channels exported successfully</string>
+    <string name="feedback_export_failed">Failed to export channels</string>
+    <plurals name="channel_import_success_count">
+        <item quantity="one">Successfully imported %1$d channel</item>
+        <item quantity="other">Successfully imported %1$d channels</item>
+    </plurals>
+
+    <!-- Import From URL Dialog -->
+    <string name="dialog_import_url_title">Import from URL</string>
+    <string name="dialog_import_url_label">URL</string>
+    <string name="dialog_import_url_placeholder">https://example.com/channels.json</string>
+    <string name="dialog_import_url_button">Import</string>
+    <string name="error_import_url_empty">URL cannot be empty</string>
+    <string name="error_import_url_invalid">Please enter a valid URL</string>
+
+    <!-- Validation Errors -->
+    <string name="error_channel_name_empty">Channel name cannot be empty</string>
+    <string name="error_stream_url_empty">Stream URL cannot be empty</string>
+    <string name="error_stream_url_invalid">Please enter a valid stream URL</string>
+    <string name="error_logo_url_invalid">Please enter a valid logo URL</string>
+
+    <!-- Content Descriptions & Accessibility -->
+    <string name="cd_scan_stream_url_qr">Scan stream URL QR code</string>
+    <string name="cd_scan_logo_url_qr">Scan logo URL QR code</string>
+    <string name="cd_scan_import_url_qr">Scan URL QR code</string>
+    <string name="cd_clear_url">Clear URL</string>
+    <string name="cd_remove_stream_url">Remove stream URL</string>
+    <string name="cd_close_scanner">Close scanner</string>
+    <string name="cd_back_to_channels">Back to channels</string>
+    <string name="cd_volume_control">Volume control</string>
+    <string name="cd_channel_logo">%1$s logo</string>
+
+    <!-- QR Scanner & Permissions -->
+    <string name="camera_permission_required">Camera permission is required to scan QR codes.</string>
+    <string name="action_grant_permission">Grant permission</string>
+
+    <!-- Player Screen -->
+    <string name="player_error_message">Unable to play this channel. Check your connection and try again.</string>
+    <string name="player_error_retry">Retry</string>
+    <string name="player_error_back">Back to channels</string>
+
+    <!-- About Dialog -->
     <string name="about_app_name">GoTV</string>
     <string name="about_dialog_title">GoTV</string>
     <string name="about_version_format">v%1$s</string>
