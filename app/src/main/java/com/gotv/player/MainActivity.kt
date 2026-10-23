@@ -3,6 +3,7 @@ package com.gotv.player
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import com.gotv.player.data.repository.SqliteChannelRepository
 import com.gotv.player.data.storage.FileLogoStorage
 import com.gotv.player.network.AndroidNetworkMonitor
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             GoTvTheme {
                 GoTvApp(

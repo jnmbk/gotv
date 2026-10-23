@@ -1,5 +1,8 @@
 package com.gotv.player.ui.player
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -54,6 +57,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +65,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -79,7 +86,8 @@ fun PlayerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     channels: List<Channel> = emptyList(),
-    onChannelSelected: (Channel) -> Unit = {}
+    onChannelSelected: (Channel) -> Unit = {},
+    onSystemBarsVisibilityChange: ((visible: Boolean) -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var sidebarVisible by remember { mutableStateOf(false) }
@@ -122,6 +130,45 @@ fun PlayerScreen(
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    val view = LocalView.current
+
+    DisposableEffect(view, lifecycleOwner) {
+        val window = view.context.findActivity()?.window
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+        insetsController?.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (controlsVisible) {
+                    insetsController?.show(WindowInsetsCompat.Type.systemBars())
+                } else {
+                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+            onSystemBarsVisibilityChange?.invoke(true)
+        }
+    }
+
+    LaunchedEffect(controlsVisible) {
+        val window = view.context.findActivity()?.window
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+        insetsController?.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (controlsVisible) {
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+        } else {
+            insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+        }
+        onSystemBarsVisibilityChange?.invoke(controlsVisible)
+    }
+
     DisposableEffect(viewModel, lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -475,3 +522,12 @@ private const val SIDEBAR_VIDEO_SHRINK = 0.3f
 
 /** Volume change increment when using physical volume keys. */
 const val VOLUME_KEY_STEP = 0.05f
+
+private fun Context.findActivity(): Activity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
