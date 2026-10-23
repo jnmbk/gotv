@@ -6,4 +6,5 @@ package com.gotv.player.ui.channel
 sealed interface QrScanTarget {
     data class StreamUrl(val index: Int = 0) : QrScanTarget
     data object LogoUrl : QrScanTarget
+    data object ImportUrl : QrScanTarget
 }

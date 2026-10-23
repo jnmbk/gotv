@@ -24,7 +24,11 @@ data class ChannelGridUiState(
     val logoReloadVersions: Map<String, Int> = emptyMap(),
     val isImportConfirmDialogOpen: Boolean = false,
     val pendingImportChannels: List<Channel> = emptyList(),
-    val userFeedbackMessage: String? = null
+    val userFeedbackMessage: String? = null,
+    val isImportUrlDialogOpen: Boolean = false,
+    val importUrlInput: String = "",
+    val importUrlError: String? = null,
+    val isImportUrlLoading: Boolean = false
 ) {
     val streamUrlInput: String
         get() = streamUrlsInput.firstOrNull().orEmpty()
