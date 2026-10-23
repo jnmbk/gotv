@@ -3,6 +3,7 @@ package com.gotv.player.ui.player
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -37,10 +38,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -72,10 +80,15 @@ fun PlayerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var sidebarVisible by remember { mutableStateOf(false) }
     var interactionTick by remember { mutableIntStateOf(0) }
+    val focusRequester = remember { FocusRequester() }
     val sidebarProgress by animateFloatAsState(
         targetValue = if (sidebarVisible) 1f else 0f,
         label = "sidebarProgress"
     )
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     LaunchedEffect(sidebarVisible, interactionTick) {
         if (sidebarVisible) {
@@ -113,6 +126,37 @@ fun PlayerScreen(
             .fillMaxSize()
             .background(Color.Black)
             .testTag("player_screen")
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    when (event.key) {
+                        Key.VolumeUp -> {
+                            val newVolume = (uiState.volume + VOLUME_KEY_STEP).coerceIn(0f, 1f)
+                            viewModel.setVolume(newVolume)
+                            true
+                        }
+                        Key.VolumeDown -> {
+                            val newVolume = (uiState.volume - VOLUME_KEY_STEP).coerceIn(0f, 1f)
+                            viewModel.setVolume(newVolume)
+                            true
+                        }
+                        Key.VolumeMute -> {
+                            val newVolume = if (uiState.volume > 0.001f) 0.0f else 1.0f
+                            viewModel.setVolume(newVolume)
+                            true
+                        }
+                        else -> false
+                    }
+                } else if (event.type == KeyEventType.KeyUp) {
+                    when (event.key) {
+                        Key.VolumeUp, Key.VolumeDown, Key.VolumeMute -> true
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            }
     ) {
     Box(
         modifier = Modifier
@@ -133,6 +177,7 @@ fun PlayerScreen(
             }
             .pointerInput(Unit) {
                 detectTapGestures {
+                    focusRequester.requestFocus()
                     if (sidebarVisible) {
                         sidebarVisible = false
                     } else if (channels.isNotEmpty()) {
@@ -150,6 +195,8 @@ fun PlayerScreen(
                     PlayerView(context).apply {
                         useController = false
                         this.player = player
+                        isFocusable = false
+                        isFocusableInTouchMode = false
                     }
                 },
                 update = { view ->
@@ -357,3 +404,6 @@ fun PlayerScreen(
 
 /** Fraction of the screen width given to the sidebar (and taken from the video). */
 private const val SIDEBAR_VIDEO_SHRINK = 0.3f
+
+/** Volume change increment when using physical volume keys. */
+const val VOLUME_KEY_STEP = 0.05f

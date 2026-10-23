@@ -2,12 +2,16 @@ package com.gotv.player.ui.player
 
 import com.gotv.player.testing.SlowTest
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import com.gotv.player.data.model.Channel
 import com.gotv.player.player.FakePlayerEngine
 import com.gotv.player.ui.theme.GoTvTheme
@@ -21,6 +25,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLooper
 import java.util.concurrent.TimeUnit
 
+@OptIn(ExperimentalTestApi::class)
 @Category(SlowTest::class)
 @RunWith(RobolectricTestRunner::class)
 class PlayerScreenTest {
@@ -92,6 +97,75 @@ class PlayerScreenTest {
         // Click again to restore volume to full
         composeTestRule.onNodeWithTag("volume_icon_button").performClick()
         assertEquals(1.0f, fakeEngine.volume.value, 0.001f)
+    }
+
+    @Test
+    fun volumeControl_physicalVolumeKeysAdjustVolume() {
+        val fakeEngine = FakePlayerEngine(initialVolume = 0.5f)
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                PlayerScreen(
+                    viewModel = viewModel,
+                    playerEngine = fakeEngine,
+                    onBack = {}
+                )
+            }
+        }
+
+        // Volume Up increases by VOLUME_KEY_STEP (0.05f)
+        composeTestRule.onNodeWithTag("player_screen").performKeyInput {
+            pressKey(Key.VolumeUp)
+        }
+        assertEquals(0.55f, fakeEngine.volume.value, 0.001f)
+
+        // Volume Down decreases by VOLUME_KEY_STEP (0.05f)
+        composeTestRule.onNodeWithTag("player_screen").performKeyInput {
+            pressKey(Key.VolumeDown)
+        }
+        assertEquals(0.50f, fakeEngine.volume.value, 0.001f)
+
+        // Volume Mute toggles mute
+        composeTestRule.onNodeWithTag("player_screen").performKeyInput {
+            pressKey(Key.VolumeMute)
+        }
+        assertEquals(0.0f, fakeEngine.volume.value, 0.001f)
+
+        // Volume Mute toggles unmute
+        composeTestRule.onNodeWithTag("player_screen").performKeyInput {
+            pressKey(Key.VolumeMute)
+        }
+        assertEquals(1.0f, fakeEngine.volume.value, 0.001f)
+    }
+
+    @Test
+    fun volumeControl_physicalVolumeKeysClampAtBounds() {
+        val fakeEngine = FakePlayerEngine(initialVolume = 0.98f)
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                PlayerScreen(
+                    viewModel = viewModel,
+                    playerEngine = fakeEngine,
+                    onBack = {}
+                )
+            }
+        }
+
+        // Volume Up clamps at 1.0f
+        composeTestRule.onNodeWithTag("player_screen").performKeyInput {
+            pressKey(Key.VolumeUp)
+        }
+        assertEquals(1.0f, fakeEngine.volume.value, 0.001f)
+
+        // Set near 0 and Volume Down clamps at 0.0f
+        fakeEngine.setVolume(0.02f)
+        composeTestRule.onNodeWithTag("player_screen").performKeyInput {
+            pressKey(Key.VolumeDown)
+        }
+        assertEquals(0.0f, fakeEngine.volume.value, 0.001f)
     }
 
     @Test
