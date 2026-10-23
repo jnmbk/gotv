@@ -18,9 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.gotv.player.R
 
 @Composable
 fun EmptyChannelsView(
@@ -45,7 +47,7 @@ fun EmptyChannelsView(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "No channels yet",
+            text = stringResource(R.string.empty_channels_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -54,7 +56,7 @@ fun EmptyChannelsView(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Add your first IPTV channel to start watching live streams.",
+            text = stringResource(R.string.empty_channels_message),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -72,7 +74,7 @@ fun EmptyChannelsView(
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.size(8.dp))
-            Text("Add Channel")
+            Text(stringResource(R.string.action_add_channel))
         }
     }
 }

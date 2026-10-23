@@ -1,7 +1,9 @@
 package com.gotv.player.ui.player
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,18 +35,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
-import com.gotv.player.data.model.Channel
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,7 +54,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.PlayerView
+import com.gotv.player.R
+import com.gotv.player.data.model.Channel
 import com.gotv.player.player.PlayerEngine
+import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(
@@ -180,7 +182,7 @@ fun PlayerScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Unable to play this channel. Check your connection and try again.",
+                    text = stringResource(R.string.player_error_message),
                     style = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.testTag("playback_error_message")
@@ -189,14 +191,14 @@ fun PlayerScreen(
                     Button(
                         onClick = { viewModel.retry() },
                         modifier = Modifier.testTag("retry_button")
-                    ) { Text("Retry") }
+                    ) { Text(stringResource(R.string.player_error_retry)) }
                     Button(
                         onClick = {
                             viewModel.release()
                             onBack()
                         },
                         modifier = Modifier.testTag("error_back_button")
-                    ) { Text("Back to channels") }
+                    ) { Text(stringResource(R.string.player_error_back)) }
                 }
             }
         }
@@ -226,7 +228,7 @@ fun PlayerScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back to channels",
+                    contentDescription = stringResource(R.string.cd_back_to_channels),
                     tint = Color.White
                 )
             }
@@ -282,7 +284,7 @@ fun PlayerScreen(
                 ) {
                     Icon(
                         imageVector = volumeIcon,
-                        contentDescription = "Volume control",
+                        contentDescription = stringResource(R.string.cd_volume_control),
                         tint = Color.White,
                         modifier = Modifier
                             .size(24.dp)

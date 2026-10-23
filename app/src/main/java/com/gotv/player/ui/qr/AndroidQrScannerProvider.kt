@@ -39,10 +39,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.gotv.player.R
 import com.gotv.player.data.qr.QrCodeDecoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -86,12 +88,12 @@ object AndroidQrScannerProvider : QrScannerProvider {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Camera permission is required to scan QR codes.",
+                        text = stringResource(R.string.camera_permission_required),
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) {
-                        Text("Grant permission")
+                        Text(stringResource(R.string.action_grant_permission))
                     }
                 }
             }
@@ -103,7 +105,7 @@ object AndroidQrScannerProvider : QrScannerProvider {
                     .padding(8.dp)
                     .testTag("qr_scanner_close_button")
             ) {
-                Icon(Icons.Default.Close, contentDescription = "Close scanner")
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close_scanner))
             }
         }
     }

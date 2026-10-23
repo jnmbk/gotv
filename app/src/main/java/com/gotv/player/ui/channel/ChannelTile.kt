@@ -33,11 +33,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
+import com.gotv.player.R
 import com.gotv.player.data.model.Channel
 import java.io.File
 
@@ -104,7 +106,7 @@ fun ChannelTile(
                 modifier = Modifier.testTag("channel_context_menu_${channel.id}")
             ) {
                 DropdownMenuItem(
-                    text = { Text("Edit Channel") },
+                    text = { Text(stringResource(R.string.context_menu_edit)) },
                     onClick = {
                         onDismissContextMenu()
                         onEditChannel()
@@ -113,7 +115,7 @@ fun ChannelTile(
                 )
                 if (!channel.logoUrl.isNullOrBlank()) {
                     DropdownMenuItem(
-                        text = { Text("Redownload Logo") },
+                        text = { Text(stringResource(R.string.context_menu_redownload_logo)) },
                         onClick = {
                             onDismissContextMenu()
                             onRedownloadLogo()
@@ -122,7 +124,7 @@ fun ChannelTile(
                     )
                 }
                 DropdownMenuItem(
-                    text = { Text("Delete Channel") },
+                    text = { Text(stringResource(R.string.context_menu_delete)) },
                     onClick = {
                         onDismissContextMenu()
                         onDeleteChannel()
@@ -159,7 +161,7 @@ fun ChannelLogo(
         ) {
             Image(
                 bitmap = bitmap.asImageBitmap(),
-                contentDescription = "${channel.name} logo",
+                contentDescription = stringResource(R.string.cd_channel_logo, channel.name),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()

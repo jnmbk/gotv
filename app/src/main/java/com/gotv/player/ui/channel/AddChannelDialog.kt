@@ -25,9 +25,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.gotv.player.R
 import com.gotv.player.ui.qr.QrScannerProvider
 
 @Composable
@@ -56,7 +58,11 @@ fun AddChannelDialog(
         modifier = modifier.testTag("add_channel_dialog"),
         onDismissRequest = onDismiss,
         title = {
-            Text(text = if (uiState.isEditMode) "Edit Channel" else "Add Channel")
+            Text(
+                text = stringResource(
+                    if (uiState.isEditMode) R.string.dialog_edit_channel_title else R.string.dialog_add_channel_title
+                )
+            )
         },
         text = {
             Column(
@@ -67,9 +73,9 @@ fun AddChannelDialog(
                 OutlinedTextField(
                     value = uiState.nameInput,
                     onValueChange = onNameChange,
-                    label = { Text("Channel Name") },
+                    label = { Text(stringResource(R.string.dialog_channel_name_label)) },
                     isError = uiState.nameError != null,
-                    supportingText = uiState.nameError?.let { { Text(it) } },
+                    supportingText = uiState.nameError?.let { { Text(it.asString()) } },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     modifier = Modifier
@@ -81,7 +87,11 @@ fun AddChannelDialog(
 
                 streamUrls.forEachIndexed { index, streamUrl ->
                     val fieldError = uiState.streamUrlsErrors.getOrNull(index)
-                    val labelText = if (index == 0) "Stream URL" else "Backup Stream URL $index"
+                    val labelText = if (index == 0) {
+                        stringResource(R.string.dialog_stream_url_label)
+                    } else {
+                        stringResource(R.string.dialog_backup_stream_url_label, index)
+                    }
                     val inputTag = if (index == 0) "stream_url_input" else "stream_url_input_$index"
                     val scanTag = if (index == 0) "scan_stream_url_qr_button" else "scan_stream_url_qr_button_$index"
 
@@ -89,7 +99,7 @@ fun AddChannelDialog(
                         value = streamUrl,
                         onValueChange = { onStreamUrlChange(index, it) },
                         label = { Text(labelText) },
-                        placeholder = { Text("https://example.com/live.m3u8") },
+                        placeholder = { Text(stringResource(R.string.dialog_stream_url_placeholder)) },
                         trailingIcon = if (hasQrScanner || canDelete) {
                             {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -100,7 +110,7 @@ fun AddChannelDialog(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.PhotoCamera,
-                                                contentDescription = "Scan stream URL QR code"
+                                                contentDescription = stringResource(R.string.cd_scan_stream_url_qr)
                                             )
                                         }
                                     }
@@ -111,7 +121,7 @@ fun AddChannelDialog(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
-                                                contentDescription = "Remove stream URL"
+                                                contentDescription = stringResource(R.string.cd_remove_stream_url)
                                             )
                                         }
                                     }
@@ -119,7 +129,7 @@ fun AddChannelDialog(
                             }
                         } else null,
                         isError = fieldError != null,
-                        supportingText = fieldError?.let { { Text(it) } },
+                        supportingText = fieldError?.let { { Text(it.asString()) } },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Uri,
@@ -144,7 +154,7 @@ fun AddChannelDialog(
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add Stream URL")
+                    Text(stringResource(R.string.dialog_add_stream_url_button))
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -152,8 +162,8 @@ fun AddChannelDialog(
                 OutlinedTextField(
                     value = uiState.logoUrlInput,
                     onValueChange = onLogoUrlChange,
-                    label = { Text("Logo URL (Optional)") },
-                    placeholder = { Text("https://example.com/logo.png") },
+                    label = { Text(stringResource(R.string.dialog_logo_url_label)) },
+                    placeholder = { Text(stringResource(R.string.dialog_logo_url_placeholder)) },
                     trailingIcon = if (hasQrScanner) {
                         {
                             IconButton(
@@ -162,13 +172,13 @@ fun AddChannelDialog(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.PhotoCamera,
-                                    contentDescription = "Scan logo URL QR code"
+                                    contentDescription = stringResource(R.string.cd_scan_logo_url_qr)
                                 )
                             }
                         }
                     } else null,
                     isError = uiState.logoUrlError != null,
-                    supportingText = uiState.logoUrlError?.let { { Text(it) } },
+                    supportingText = uiState.logoUrlError?.let { { Text(it.asString()) } },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Uri,
@@ -185,7 +195,11 @@ fun AddChannelDialog(
                 onClick = onConfirm,
                 modifier = Modifier.testTag("save_channel_button")
             ) {
-                Text(if (uiState.isEditMode) "Save" else "Add")
+                Text(
+                    stringResource(
+                        if (uiState.isEditMode) R.string.action_save else R.string.action_add
+                    )
+                )
             }
         },
         dismissButton = {
@@ -193,7 +207,7 @@ fun AddChannelDialog(
                 onClick = onDismiss,
                 modifier = Modifier.testTag("cancel_channel_button")
             ) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

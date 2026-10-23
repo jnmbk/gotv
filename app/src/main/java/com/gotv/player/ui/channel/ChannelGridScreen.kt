@@ -48,6 +48,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gotv.player.R
 import com.gotv.player.data.model.Channel
 import com.gotv.player.ui.about.AboutDialog
 import com.gotv.player.ui.qr.QrScannerProvider
@@ -120,7 +122,7 @@ fun ChannelGridScreen(
     LaunchedEffect(uiState.userFeedbackMessage) {
         val message = uiState.userFeedbackMessage ?: return@LaunchedEffect
         try {
-            snackbarHostState.showSnackbar(message)
+            snackbarHostState.showSnackbar(message.asString(context))
         } finally {
             viewModel.onFeedbackMessageDismissed()
         }
@@ -144,7 +146,7 @@ fun ChannelGridScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "GoTV",
+                        text = stringResource(R.string.app_name),
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -155,7 +157,7 @@ fun ChannelGridScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "Add Channel"
+                            contentDescription = stringResource(R.string.action_add_channel)
                         )
                     }
                     IconButton(
@@ -164,7 +166,7 @@ fun ChannelGridScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More options"
+                            contentDescription = stringResource(R.string.action_more_options)
                         )
                     }
                     DropdownMenu(
@@ -173,7 +175,7 @@ fun ChannelGridScreen(
                         modifier = Modifier.testTag("channel_overflow_dropdown_menu")
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Import channels") },
+                            text = { Text(stringResource(R.string.menu_import_channels)) },
                             onClick = {
                                 overflowMenuExpanded = false
                                 if (onImportRequested != null) {
@@ -185,7 +187,7 @@ fun ChannelGridScreen(
                             modifier = Modifier.testTag("menu_import_channels")
                         )
                         DropdownMenuItem(
-                            text = { Text("Import from URL") },
+                            text = { Text(stringResource(R.string.menu_import_from_url)) },
                             onClick = {
                                 overflowMenuExpanded = false
                                 viewModel.onOpenImportUrlDialog()
@@ -193,7 +195,7 @@ fun ChannelGridScreen(
                             modifier = Modifier.testTag("menu_import_from_url")
                         )
                         DropdownMenuItem(
-                            text = { Text("Export channels") },
+                            text = { Text(stringResource(R.string.menu_export_channels)) },
                             onClick = {
                                 overflowMenuExpanded = false
                                 if (onExportRequested != null) {
@@ -205,7 +207,7 @@ fun ChannelGridScreen(
                             modifier = Modifier.testTag("menu_export_channels")
                         )
                         DropdownMenuItem(
-                            text = { Text("About") },
+                            text = { Text(stringResource(R.string.menu_about)) },
                             onClick = {
                                 overflowMenuExpanded = false
                                 isAboutDialogOpen = true
@@ -376,17 +378,17 @@ fun ChannelGridScreen(
                 modifier = Modifier.testTag("delete_channel_dialog"),
                 onDismissRequest = viewModel::onDismissDeleteDialog,
                 title = {
-                    Text(text = "Delete ${deletingChannel.name}?")
+                    Text(text = stringResource(R.string.dialog_delete_channel_title, deletingChannel.name))
                 },
                 text = {
-                    Text(text = "Are you sure you want to remove ${deletingChannel.name}?")
+                    Text(text = stringResource(R.string.dialog_delete_channel_message, deletingChannel.name))
                 },
                 confirmButton = {
                     Button(
                         onClick = viewModel::onConfirmDeleteChannel,
                         modifier = Modifier.testTag("confirm_delete_channel_button")
                     ) {
-                        Text("Delete")
+                        Text(stringResource(R.string.action_delete))
                     }
                 },
                 dismissButton = {
@@ -394,7 +396,7 @@ fun ChannelGridScreen(
                         onClick = viewModel::onDismissDeleteDialog,
                         modifier = Modifier.testTag("cancel_delete_channel_button")
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.action_cancel))
                     }
                 }
             )
@@ -405,17 +407,17 @@ fun ChannelGridScreen(
                 modifier = Modifier.testTag("import_confirm_dialog"),
                 onDismissRequest = viewModel::onDismissImportConfirmDialog,
                 title = {
-                    Text(text = "Replace all channels?")
+                    Text(text = stringResource(R.string.dialog_import_confirm_title))
                 },
                 text = {
-                    Text(text = "This will replace all current channels. Proceed?")
+                    Text(text = stringResource(R.string.dialog_import_confirm_message))
                 },
                 confirmButton = {
                     Button(
                         onClick = viewModel::onConfirmImport,
                         modifier = Modifier.testTag("confirm_import_button")
                     ) {
-                        Text("Proceed")
+                        Text(stringResource(R.string.action_proceed))
                     }
                 },
                 dismissButton = {
@@ -423,7 +425,7 @@ fun ChannelGridScreen(
                         onClick = viewModel::onDismissImportConfirmDialog,
                         modifier = Modifier.testTag("cancel_import_button")
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.action_cancel))
                     }
                 }
             )

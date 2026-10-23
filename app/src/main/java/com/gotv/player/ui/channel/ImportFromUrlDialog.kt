@@ -24,9 +24,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.gotv.player.R
 import com.gotv.player.ui.qr.QrScannerProvider
 
 @Composable
@@ -51,22 +53,22 @@ fun ImportFromUrlDialog(
             }
         },
         title = {
-            Text(text = "Import from URL")
+            Text(text = stringResource(R.string.dialog_import_url_title))
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = uiState.importUrlInput,
                     onValueChange = onUrlChange,
-                    label = { Text("URL") },
-                    placeholder = { Text("https://example.com/channels.json") },
+                    label = { Text(stringResource(R.string.dialog_import_url_label)) },
+                    placeholder = { Text(stringResource(R.string.dialog_import_url_placeholder)) },
                     enabled = !isLoading,
                     singleLine = true,
                     isError = uiState.importUrlError != null,
                     supportingText = uiState.importUrlError?.let {
                         {
                             Text(
-                                text = it,
+                                text = it.asString(),
                                 modifier = Modifier.testTag("import_url_error_text")
                             )
                         }
@@ -92,7 +94,7 @@ fun ImportFromUrlDialog(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Clear,
-                                        contentDescription = "Clear URL"
+                                        contentDescription = stringResource(R.string.cd_clear_url)
                                     )
                                 }
                             }
@@ -104,7 +106,7 @@ fun ImportFromUrlDialog(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.PhotoCamera,
-                                        contentDescription = "Scan URL QR code"
+                                        contentDescription = stringResource(R.string.cd_scan_import_url_qr)
                                     )
                                 }
                             }
@@ -132,7 +134,7 @@ fun ImportFromUrlDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Import")
+                Text(stringResource(R.string.dialog_import_url_button))
             }
         },
         dismissButton = {
@@ -141,7 +143,7 @@ fun ImportFromUrlDialog(
                 enabled = !isLoading,
                 modifier = Modifier.testTag("cancel_import_url_button")
             ) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

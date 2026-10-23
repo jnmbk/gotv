@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performTextInput
 import com.gotv.player.testing.SlowTest
 import com.gotv.player.ui.qr.FakeQrScannerProvider
 import com.gotv.player.ui.theme.GoTvTheme
+import com.gotv.player.ui.util.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -160,7 +161,7 @@ class ImportFromUrlDialogTest {
                     uiState = ChannelGridUiState(
                         isImportUrlDialogOpen = true,
                         importUrlInput = "https://bad",
-                        importUrlError = "Failed to download channel list: HTTP 404"
+                        importUrlError = UiText.DynamicString("Failed to download channel list: HTTP 404")
                     ),
                     onUrlChange = {},
                     onClearUrl = {},
