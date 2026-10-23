@@ -1,6 +1,6 @@
 # Issue 02: Support physical volume keys in player
 
-Status: open
+Status: closed
 
 ## Description
 The on-screen volume bar in `PlayerScreen` does not respond to physical hardware volume keys (Volume Up, Volume Down, Volume Mute). Physical volume key presses while watching a stream should adjust the in-app volume bar and audio.
@@ -11,3 +11,8 @@ The on-screen volume bar in `PlayerScreen` does not respond to physical hardware
 3. Pressing Volume Mute toggles volume between `0.0f` and `1.0f`.
 4. The key events are consumed so that system volume dialogs do not overlay the live stream playback.
 5. Unit and Compose tests verify volume changes upon hardware key events.
+
+## Comments
+- Implemented focus management with `FocusRequester` and `onPreviewKeyEvent` on the player container in `PlayerScreen.kt`.
+- Handled `Key.VolumeUp`, `Key.VolumeDown`, and `Key.VolumeMute` in increments of `VOLUME_KEY_STEP` (0.05f) and clamped within `[0f, 1f]`.
+- Verified behavior and bounds clamping with Compose UI tests in `PlayerScreenTest.kt`.
