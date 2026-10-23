@@ -5,6 +5,9 @@
     <string name="about_app_name">GoTV</string>
     <string name="about_dialog_title">GoTV</string>
     <string name="about_version_format">v%1$s</string>
+    <string name="about_source_code_label">Source Code</string>
+    <string name="about_source_code_name">GitHub (jnmbk/gotv)</string>
+    <string name="about_source_code_url">https://github.com/jnmbk/gotv</string>
     <string name="about_author_label">Author</string>
     <string name="about_author_name">Uğur Çetin</string>
     <string name="about_author_url">https://github.com/jnmbk</string>
