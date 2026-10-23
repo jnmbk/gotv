@@ -96,7 +96,7 @@ object ChannelValidator {
         )
     }
 
-    private fun isValidHttpUrl(url: String): Boolean {
+    fun isValidHttpUrl(url: String): Boolean {
         if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
             return false
         }
