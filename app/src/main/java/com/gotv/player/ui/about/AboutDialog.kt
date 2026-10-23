@@ -26,6 +26,9 @@ fun AboutDialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     versionName: String = BuildConfig.VERSION_NAME,
+    sourceCodeLabel: String = stringResource(R.string.about_source_code_label),
+    sourceCodeName: String = stringResource(R.string.about_source_code_name),
+    sourceCodeUrl: String = stringResource(R.string.about_source_code_url),
     authorName: String = stringResource(R.string.about_author_name),
     authorUrl: String = stringResource(R.string.about_author_url),
     licenseName: String = stringResource(R.string.about_license_name),
@@ -59,7 +62,7 @@ fun AboutDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("about_dialog_content"),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = stringResource(R.string.about_version_format, versionName),
@@ -67,6 +70,29 @@ fun AboutDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("about_dialog_version")
                 )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("about_dialog_source_code_section")
+                ) {
+                    Text(
+                        text = sourceCodeLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = sourceCodeName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier
+                            .testTag("about_dialog_source_code_link")
+                            .clickable { handleOpenUrl(sourceCodeUrl) }
+                            .padding(vertical = 2.dp)
+                    )
+                }
 
                 Column(
                     modifier = Modifier
