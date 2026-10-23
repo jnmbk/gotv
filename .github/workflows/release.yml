@@ -47,4 +47,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ steps.release.outputs.tag_name }} app/build/outputs/apk/release/app-release-unsigned.apk --clobber
+          TAG="${{ steps.release.outputs.tag_name }}"
+          APK_NAME="gotv-${TAG}.apk"
+          cp app/build/outputs/apk/release/app-release-unsigned.apk "$APK_NAME"
+          gh release upload "$TAG" "$APK_NAME" --clobber
