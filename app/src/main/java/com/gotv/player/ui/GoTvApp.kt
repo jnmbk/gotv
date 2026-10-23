@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.gotv.player.data.backup.ChannelListDownloader
+import com.gotv.player.data.backup.HttpChannelListDownloader
 import com.gotv.player.data.model.Channel
 import com.gotv.player.data.repository.ChannelRepository
 import com.gotv.player.data.storage.LogoStorage
@@ -27,11 +29,16 @@ fun GoTvApp(
     playerEngineFactory: () -> PlayerEngine,
     networkMonitor: NetworkMonitor = AlwaysOnlineNetworkMonitor,
     modifier: Modifier = Modifier,
-    qrScanner: QrScannerProvider? = null
+    qrScanner: QrScannerProvider? = null,
+    channelListDownloader: ChannelListDownloader = HttpChannelListDownloader()
 ) {
     var activeChannel by remember { mutableStateOf<Channel?>(null) }
-    val channelViewModel = remember(channelRepository, logoStorage) {
-        ChannelGridViewModel(channelRepository, logoStorage)
+    val channelViewModel = remember(channelRepository, logoStorage, channelListDownloader) {
+        ChannelGridViewModel(
+            repository = channelRepository,
+            logoStorage = logoStorage,
+            channelListDownloader = channelListDownloader
+        )
     }
 
     val channelState by channelViewModel.uiState.collectAsState()
