@@ -27,3 +27,8 @@ Issue 03 has been fully implemented and verified:
 3. **Verification**:
    - Validated YAML syntax for both workflow files.
    - Verified locally that `./gradlew test assembleDebug assembleRelease` succeeds and produces the expected APK assets at the exact paths targeted by the workflows.
+
+## Comments
+
+- Fixed CI failure where `org.gradle.java.home=/usr/lib/jvm/java-17-openjdk` hardcoded in `gradle.properties` caused GitHub Actions runner (`ubuntu-latest`) to fail with invalid Java home. Removed the hardcoded property from repository-tracked `gradle.properties` so CI can use the JDK 17 configured by `actions/setup-java`. Local developer environments requiring specific JDK overrides should place them in `~/.gradle/gradle.properties` or set `JAVA_HOME`.
+
