@@ -2,6 +2,60 @@
 
 A lightweight, low-RAM Android IPTV player designed for smooth live stream playback on low-spec hardware and Android Go devices.
 
+## User Guide & Walkthrough
+
+Learn how to use GoTV to organize channels, import playlists, and enjoy seamless live playback.
+
+### 1. Channel Dashboard
+
+<p align="center">
+  <img src="docs/screenshots/channel-grid.png" width="700" alt="Channel Grid Dashboard" />
+</p>
+
+* **Browse Channels:** Scroll through your custom channels presented in a clean, responsive grid layout. All channel logos are downsampled and cached on disk to maintain a low RAM footprint on 1 GB–2 GB devices.
+* **Reorder Channels:** Long-press and drag any channel tile to rearrange your channel lineup to your preference.
+* **Quick Channel Launch:** Tap any channel card to immediately start full-screen live playback.
+
+---
+
+### 2. Adding & Importing Channels
+
+<p align="center">
+  <img src="docs/screenshots/add-channel.png" width="700" alt="Add Channel Dialog" />
+</p>
+
+* **Manual Addition:** Tap the **+** (Add Channel) icon on the top app bar. Enter the channel name, HLS stream URL (`.m3u8`), and optional logo URL.
+* **QR Code Scanner:** Instead of typing long URLs with an on-screen keyboard or remote, tap the QR icon next to the URL input fields to scan a QR code using your device camera or pick a QR image from your gallery.
+* **Batch Import & Export:** Tap the overflow menu (`⋮`) on the dashboard to:
+  * **Import from URL:** Download remote channel lists directly.
+  * **Import / Export Backup:** Save your channel setup to a JSON file or restore it onto another device.
+
+---
+
+### 3. Focused Fullscreen Live Playback
+
+<p align="center">
+  <img src="docs/screenshots/player-fullscreen.png" width="700" alt="Fullscreen Player" />
+</p>
+
+* **Lean Live Streaming:** Clean playback powered by AndroidX Media3 (ExoPlayer), tuned specifically for live HLS streams without scrubbing bars, DVR buffering, or playback control clutter.
+* **Volume Controls:** Adjust audio output using physical volume keys, on-screen volume slider, or vertical swipe gestures on the video viewport.
+* **Network Resilience:** Automatically displays a non-blocking loading indicator and reconnects smoothly when network connectivity drops.
+
+---
+
+### 4. Quick In-Player Channel Switching
+
+<p align="center">
+  <img src="docs/screenshots/player-sidebar.png" width="700" alt="In-Player Channel Switcher" />
+</p>
+
+* **Open Channel Sidebar:** Tap anywhere on the video during playback. The active video smoothly shrinks to the side and the channel list slides in.
+* **Switch Without Leaving:** Tap any channel in the sidebar to switch instantly without exiting to the main dashboard.
+* **Auto-Dismissing Drawer:** The sidebar automatically hides after 10 seconds of inactivity or when tapping on the video area.
+
+---
+
 ## Features
 
 - **Low RAM Footprint**: Minimal heap allocation, constrained buffer pipelines, and aggressive memory management designed for 1 GB–2 GB RAM devices.
