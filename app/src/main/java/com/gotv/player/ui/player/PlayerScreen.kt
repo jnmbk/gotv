@@ -152,6 +152,11 @@ fun PlayerScreen(
                         this.player = player
                     }
                 },
+                update = { view ->
+                    // The player instance changes when switching channels from the sidebar;
+                    // the factory only runs once, so rebind here.
+                    if (view.player !== player) view.player = player
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .testTag("video_surface")
