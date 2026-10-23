@@ -1,3 +1,5 @@
+import com.android.build.api.variant.HasUnitTestBuilder
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -64,6 +66,12 @@ android {
                 }
             }
         }
+    }
+}
+
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) { variantBuilder ->
+        (variantBuilder as? HasUnitTestBuilder)?.enableUnitTest = false
     }
 }
 
