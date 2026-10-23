@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App & Navigation -->
+    <string name="app_name">GoTV</string>
+    <string name="action_add_channel">Kanal Ekle</string>
+    <string name="action_more_options">Diğer seçenekler</string>
+
+    <!-- Menu Items -->
+    <string name="menu_import_channels">Kanalları içe aktar</string>
+    <string name="menu_import_from_url">URL\'den içe aktar</string>
+    <string name="menu_export_channels">Kanalları dışa aktar</string>
+    <string name="menu_about">Hakkında</string>
+
+    <!-- Empty State -->
+    <string name="empty_channels_title">Henüz kanal yok</string>
+    <string name="empty_channels_message">Canlı yayınları izlemeye başlamak için ilk IPTV kanalınızı ekleyin.</string>
+
+    <!-- Add/Edit Channel Dialog -->
+    <string name="dialog_add_channel_title">Kanal Ekle</string>
+    <string name="dialog_edit_channel_title">Kanalı Düzenle</string>
+    <string name="dialog_channel_name_label">Kanal Adı</string>
+    <string name="dialog_stream_url_label">Yayın URL\'si</string>
+    <string name="dialog_backup_stream_url_label">Yedek Yayın URL\'si %1$d</string>
+    <string name="dialog_stream_url_placeholder">https://example.com/live.m3u8</string>
+    <string name="dialog_logo_url_label">Logo URL\'si (İsteğe bağlı)</string>
+    <string name="dialog_logo_url_placeholder">https://example.com/logo.png</string>
+    <string name="dialog_add_stream_url_button">Yayın URL\'si Ekle</string>
+    <string name="action_save">Kaydet</string>
+    <string name="action_add">Ekle</string>
+    <string name="action_cancel">İptal</string>
+    <string name="action_delete">Sil</string>
+    <string name="action_proceed">Devam Et</string>
+
+    <!-- Context Menu & Tile Actions -->
+    <string name="context_menu_edit">Kanalı Düzenle</string>
+    <string name="context_menu_redownload_logo">Logoyu Yeniden İndir</string>
+    <string name="context_menu_delete">Kanalı Sil</string>
+
+    <!-- Delete Confirmation Dialog -->
+    <string name="dialog_delete_channel_title">%1$s silinsin mi?</string>
+    <string name="dialog_delete_channel_message">%1$s kanalını silmek istediğinizden emin misiniz?</string>
+
+    <!-- Import / Export Confirmation & Feedback -->
+    <string name="dialog_import_confirm_title">Tüm kanallar değiştirilsin mi?</string>
+    <string name="dialog_import_confirm_message">Bu işlem mevcut tüm kanalların yerine yenilerini koyacaktır. Devam edilsin mi?</string>
+    <string name="feedback_export_success">Kanallar başarıyla dışa aktarıldı</string>
+    <string name="feedback_export_failed">Kanallar dışa aktarılamadı</string>
+    <plurals name="channel_import_success_count">
+        <item quantity="one">%1$d kanal başarıyla içe aktarıldı</item>
+        <item quantity="other">%1$d kanal başarıyla içe aktarıldı</item>
+    </plurals>
+
+    <!-- Import From URL Dialog -->
+    <string name="dialog_import_url_title">URL\'den İçe Aktar</string>
+    <string name="dialog_import_url_label">URL</string>
+    <string name="dialog_import_url_placeholder">https://example.com/channels.json</string>
+    <string name="dialog_import_url_button">İçe Aktar</string>
+    <string name="error_import_url_empty">URL boş bırakılamaz</string>
+    <string name="error_import_url_invalid">Lütfen geçerli bir URL girin</string>
+
+    <!-- Validation Errors -->
+    <string name="error_channel_name_empty">Kanal adı boş bırakılamaz</string>
+    <string name="error_stream_url_empty">Yayın URL\'si boş bırakılamaz</string>
+    <string name="error_stream_url_invalid">Lütfen geçerli bir yayın URL\'si girin</string>
+    <string name="error_logo_url_invalid">Lütfen geçerli bir logo URL\'si girin</string>
+
+    <!-- Content Descriptions & Accessibility -->
+    <string name="cd_scan_stream_url_qr">Yayın URL\'si QR kodunu tara</string>
+    <string name="cd_scan_logo_url_qr">Logo URL\'si QR kodunu tara</string>
+    <string name="cd_scan_import_url_qr">URL QR kodunu tara</string>
+    <string name="cd_clear_url">URL\'yi temizle</string>
+    <string name="cd_remove_stream_url">Yayın URL\'sini kaldır</string>
+    <string name="cd_close_scanner">Tarayıcıyı kapat</string>
+    <string name="cd_back_to_channels">Kanallara dön</string>
+    <string name="cd_volume_control">Ses kontrolü</string>
+    <string name="cd_channel_logo">%1$s logosu</string>
+
+    <!-- QR Scanner & Permissions -->
+    <string name="camera_permission_required">QR kodlarını taramak için kamera izni gereklidir.</string>
+    <string name="action_grant_permission">İzin ver</string>
+
+    <!-- Player Screen -->
+    <string name="player_error_message">Bu kanal oynatılamıyor. Bağlantınızı kontrol edip tekrar deneyin.</string>
+    <string name="player_error_retry">Tekrar dene</string>
+    <string name="player_error_back">Kanallara dön</string>
+
+    <!-- About Dialog -->
+    <string name="about_app_name">GoTV</string>
+    <string name="about_dialog_title">GoTV</string>
+    <string name="about_version_format">v%1$s</string>
+    <string name="about_source_code_label">Kaynak Kodu</string>
+    <string name="about_source_code_name">GitHub (jnmbk/gotv)</string>
+    <string name="about_source_code_url">https://github.com/jnmbk/gotv</string>
+    <string name="about_author_label">Yazar</string>
+    <string name="about_author_name">Uğur Çetin</string>
+    <string name="about_author_url">https://github.com/jnmbk</string>
+    <string name="about_license_label">Lisans</string>
+    <string name="about_license_name">Apache License 2.0</string>
+    <string name="about_license_notice">GoTV, Apache License 2.0 altında lisanslanmış açık kaynaklı bir yazılımdır.</string>
+    <string name="about_license_url">https://www.apache.org/licenses/LICENSE-2.0</string>
+    <string name="about_dismiss_button">Kapat</string>
+</resources>
