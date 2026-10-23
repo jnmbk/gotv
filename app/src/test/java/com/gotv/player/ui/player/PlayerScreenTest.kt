@@ -190,6 +190,122 @@ class PlayerScreenTest {
         assertTrue(fakeEngine.isReleased)
     }
 
+    @Test
+    fun controls_autoDismissAfterTimeout() {
+        val fakeEngine = FakePlayerEngine()
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                PlayerScreen(
+                    viewModel = viewModel,
+                    playerEngine = fakeEngine,
+                    onBack = {}
+                )
+            }
+        }
+
+        // Initially, back button, title, and volume controls are displayed
+        composeTestRule.onNodeWithTag("player_back_button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("player_channel_title").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("volume_control_panel").assertIsDisplayed()
+
+        // Advance time past the controls auto-dismiss timeout
+        composeTestRule.mainClock.advanceTimeBy(CONTROLS_AUTO_DISMISS_MS + 1_000L)
+
+        // All overlay controls have smoothly disappeared
+        composeTestRule.onNodeWithTag("player_back_button").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("player_channel_title").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("volume_control_panel").assertDoesNotExist()
+    }
+
+    @Test
+    fun controls_reappearOnTapAfterDismiss() {
+        val fakeEngine = FakePlayerEngine()
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                PlayerScreen(
+                    viewModel = viewModel,
+                    playerEngine = fakeEngine,
+                    onBack = {}
+                )
+            }
+        }
+
+        // Wait until controls auto-dismiss
+        composeTestRule.mainClock.advanceTimeBy(CONTROLS_AUTO_DISMISS_MS + 1_000L)
+        composeTestRule.onNodeWithTag("player_back_button").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("volume_control_panel").assertDoesNotExist()
+
+        // Tap the screen
+        composeTestRule.onNodeWithTag("video_viewport").performClick()
+
+        // Controls are displayed again
+        composeTestRule.onNodeWithTag("player_back_button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("volume_control_panel").assertIsDisplayed()
+    }
+
+    @Test
+    fun controls_reappearOnPhysicalVolumeKey() {
+        val fakeEngine = FakePlayerEngine()
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                PlayerScreen(
+                    viewModel = viewModel,
+                    playerEngine = fakeEngine,
+                    onBack = {}
+                )
+            }
+        }
+
+        // Wait until controls auto-dismiss
+        composeTestRule.mainClock.advanceTimeBy(CONTROLS_AUTO_DISMISS_MS + 1_000L)
+        composeTestRule.onNodeWithTag("volume_control_panel").assertDoesNotExist()
+
+        // Press Volume Up
+        composeTestRule.onNodeWithTag("player_screen").performKeyInput {
+            pressKey(Key.VolumeUp)
+        }
+
+        // Volume control panel reappears
+        composeTestRule.onNodeWithTag("volume_control_panel").assertIsDisplayed()
+    }
+
+    @Test
+    fun controls_touchInteractionResetsDismissTimer() {
+        val fakeEngine = FakePlayerEngine()
+        val viewModel = PlayerViewModel(testChannel, fakeEngine)
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                PlayerScreen(
+                    viewModel = viewModel,
+                    playerEngine = fakeEngine,
+                    onBack = {}
+                )
+            }
+        }
+
+        // Advance 2 seconds (less than 3s timeout)
+        composeTestRule.mainClock.advanceTimeBy(CONTROLS_AUTO_DISMISS_MS - 1_000L)
+        composeTestRule.onNodeWithTag("volume_icon_button").assertIsDisplayed()
+
+        // Click mute button to interact
+        composeTestRule.onNodeWithTag("volume_icon_button").performClick()
+
+        // Advance another 2 seconds (would have timed out if not reset)
+        composeTestRule.mainClock.advanceTimeBy(CONTROLS_AUTO_DISMISS_MS - 1_000L)
+        composeTestRule.onNodeWithTag("volume_icon_button").assertIsDisplayed()
+
+        // Advance past remaining timeout + exit animation
+        composeTestRule.mainClock.advanceTimeBy(2_000L)
+        composeTestRule.onNodeWithTag("volume_icon_button").assertDoesNotExist()
+    }
+
     /** Runs pending main-looper work (view model coroutines) and advances the frozen compose clock. */
     private fun settle(ms: Long) {
         ShadowLooper.idleMainLooper(ms, TimeUnit.MILLISECONDS)
