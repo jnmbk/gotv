@@ -1,7 +1,10 @@
 package com.gotv.player.ui.player
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -49,6 +52,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -80,6 +84,8 @@ fun PlayerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var sidebarVisible by remember { mutableStateOf(false) }
     var interactionTick by remember { mutableIntStateOf(0) }
+    var controlsVisible by remember { mutableStateOf(true) }
+    var controlsInteractionTick by remember { mutableIntStateOf(0) }
     val focusRequester = remember { FocusRequester() }
     val sidebarProgress by animateFloatAsState(
         targetValue = if (sidebarVisible) 1f else 0f,
@@ -94,6 +100,13 @@ fun PlayerScreen(
         if (sidebarVisible) {
             delay(SIDEBAR_AUTO_DISMISS_MS)
             sidebarVisible = false
+        }
+    }
+
+    LaunchedEffect(controlsVisible, controlsInteractionTick, sidebarVisible) {
+        if (controlsVisible && !sidebarVisible) {
+            delay(CONTROLS_AUTO_DISMISS_MS)
+            controlsVisible = false
         }
     }
 
@@ -134,16 +147,22 @@ fun PlayerScreen(
                         Key.VolumeUp -> {
                             val newVolume = (uiState.volume + VOLUME_KEY_STEP).coerceIn(0f, 1f)
                             viewModel.setVolume(newVolume)
+                            controlsInteractionTick++
+                            controlsVisible = true
                             true
                         }
                         Key.VolumeDown -> {
                             val newVolume = (uiState.volume - VOLUME_KEY_STEP).coerceIn(0f, 1f)
                             viewModel.setVolume(newVolume)
+                            controlsInteractionTick++
+                            controlsVisible = true
                             true
                         }
                         Key.VolumeMute -> {
                             val newVolume = if (uiState.volume > 0.001f) 0.0f else 1.0f
                             viewModel.setVolume(newVolume)
+                            controlsInteractionTick++
+                            controlsVisible = true
                             true
                         }
                         else -> false
@@ -169,11 +188,19 @@ fun PlayerScreen(
             }
             .testTag("video_viewport")
             .pointerInput(Unit) {
-                detectVerticalDragGestures { _, dragAmount ->
-                    val delta = -dragAmount / 500f
-                    val newVolume = (uiState.volume + delta).coerceIn(0f, 1f)
-                    viewModel.setVolume(newVolume)
-                }
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        controlsInteractionTick++
+                        controlsVisible = true
+                    },
+                    onVerticalDrag = { _, dragAmount ->
+                        val delta = -dragAmount / 500f
+                        val newVolume = (uiState.volume + delta).coerceIn(0f, 1f)
+                        viewModel.setVolume(newVolume)
+                        controlsInteractionTick++
+                        controlsVisible = true
+                    }
+                )
             }
             .pointerInput(Unit) {
                 detectTapGestures {
@@ -184,6 +211,8 @@ fun PlayerScreen(
                         interactionTick++
                         sidebarVisible = true
                     }
+                    controlsInteractionTick++
+                    controlsVisible = true
                 }
             }
     ) {
@@ -275,109 +304,142 @@ fun PlayerScreen(
         }
 
         // Top bar overlay with back button and channel name
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.7f),
-                            Color.Transparent
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopStart)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.7f),
+                                Color.Transparent
+                            )
                         )
                     )
-                )
-                .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = {
-                    viewModel.release()
-                    onBack()
-                },
-                modifier = Modifier.testTag("player_back_button")
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent(PointerEventPass.Initial)
+                                controlsInteractionTick++
+                            }
+                        }
+                    }
+                    .statusBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.cd_back_to_channels),
-                    tint = Color.White
+                IconButton(
+                    onClick = {
+                        viewModel.release()
+                        onBack()
+                    },
+                    modifier = Modifier.testTag("player_back_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.cd_back_to_channels),
+                        tint = Color.White
+                    )
+                }
+
+                Text(
+                    text = uiState.channel.name,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                        .testTag("player_channel_title")
                 )
             }
-
-            Text(
-                text = uiState.channel.name,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp)
-                    .testTag("player_channel_title")
-            )
         }
 
         // Bottom on-screen volume control (no seek bar, no pause, pure live stream volume control)
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.75f)
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.75f)
+                            )
                         )
                     )
-                )
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .testTag("volume_control_panel")
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent(PointerEventPass.Initial)
+                                controlsInteractionTick++
+                            }
+                        }
+                    }
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .testTag("volume_control_panel")
             ) {
-                val volumeIcon = when {
-                    uiState.volume <= 0.001f -> Icons.AutoMirrored.Filled.VolumeMute
-                    uiState.volume < 0.5f -> Icons.AutoMirrored.Filled.VolumeDown
-                    else -> Icons.AutoMirrored.Filled.VolumeUp
-                }
-
-                IconButton(
-                    onClick = {
-                        val newVol = if (uiState.volume > 0.001f) 0.0f else 1.0f
-                        viewModel.setVolume(newVol)
-                    },
-                    modifier = Modifier.testTag("volume_icon_button")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = volumeIcon,
-                        contentDescription = stringResource(R.string.cd_volume_control),
-                        tint = Color.White,
+                    val volumeIcon = when {
+                        uiState.volume <= 0.001f -> Icons.AutoMirrored.Filled.VolumeMute
+                        uiState.volume < 0.5f -> Icons.AutoMirrored.Filled.VolumeDown
+                        else -> Icons.AutoMirrored.Filled.VolumeUp
+                    }
+
+                    IconButton(
+                        onClick = {
+                            controlsInteractionTick++
+                            controlsVisible = true
+                            val newVol = if (uiState.volume > 0.001f) 0.0f else 1.0f
+                            viewModel.setVolume(newVol)
+                        },
+                        modifier = Modifier.testTag("volume_icon_button")
+                    ) {
+                        Icon(
+                            imageVector = volumeIcon,
+                            contentDescription = stringResource(R.string.cd_volume_control),
+                            tint = Color.White,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .testTag("volume_icon")
+                        )
+                    }
+
+                    Slider(
+                        value = uiState.volume,
+                        onValueChange = { newVolume ->
+                            controlsInteractionTick++
+                            controlsVisible = true
+                            viewModel.setVolume(newVolume)
+                        },
+                        valueRange = 0f..1f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                        ),
                         modifier = Modifier
-                            .size(24.dp)
-                            .testTag("volume_icon")
+                            .weight(1f)
+                            .testTag("volume_slider")
                     )
                 }
-
-                Slider(
-                    value = uiState.volume,
-                    onValueChange = { newVolume ->
-                        viewModel.setVolume(newVolume)
-                    },
-                    valueRange = 0f..1f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color.White,
-                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("volume_slider")
-                )
             }
         }
     }
@@ -392,7 +454,10 @@ fun PlayerScreen(
                     onChannelSelected(channel)
                 }
             },
-            onInteraction = { interactionTick++ },
+            onInteraction = {
+                interactionTick++
+                controlsInteractionTick++
+            },
             modifier = Modifier
                 .fillMaxWidth(SIDEBAR_VIDEO_SHRINK)
                 .align(Alignment.CenterStart)
@@ -401,6 +466,9 @@ fun PlayerScreen(
     }
     }
 }
+
+/** Delay without interaction after which the on-screen player controls auto-dismiss. */
+const val CONTROLS_AUTO_DISMISS_MS = 3_000L
 
 /** Fraction of the screen width given to the sidebar (and taken from the video). */
 private const val SIDEBAR_VIDEO_SHRINK = 0.3f
