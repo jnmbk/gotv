@@ -135,6 +135,7 @@ class PlayerScreenTest {
         }
         settle(100)
         composeTestRule.onNodeWithTag("loading_spinner").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("player_loading_logo").assertDoesNotExist()
 
         network.setOnline(false)
         fakeEngine.updatePlaybackState(
@@ -142,10 +143,12 @@ class PlayerScreenTest {
         )
         settle(100)
         composeTestRule.onNodeWithTag("loading_spinner").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("player_loading_logo").assertIsDisplayed()
 
         network.setOnline(true)
         settle(100)
         composeTestRule.onNodeWithTag("loading_spinner").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("player_loading_logo").assertDoesNotExist()
         assertEquals(2, fakeEngine.playCount)
     }
 
@@ -167,6 +170,7 @@ class PlayerScreenTest {
         settle(500)
         assertTrue(composeTestRule.onAllNodesWithTag("playback_error").fetchSemanticsNodes().isNotEmpty())
         composeTestRule.onNodeWithTag("playback_error_message").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("player_loading_logo").assertIsDisplayed()
         composeTestRule.onNodeWithTag("loading_spinner").assertDoesNotExist()
 
         composeTestRule.onNodeWithTag("error_back_button").performClick()

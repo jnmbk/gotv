@@ -57,6 +57,7 @@ import androidx.media3.ui.PlayerView
 import com.gotv.player.R
 import com.gotv.player.data.model.Channel
 import com.gotv.player.player.PlayerEngine
+import com.gotv.player.ui.channel.ChannelLogo
 import kotlinx.coroutines.delay
 
 @Composable
@@ -164,12 +165,24 @@ fun PlayerScreen(
         }
 
         if (uiState.showSpinner) {
-            CircularProgressIndicator(
-                color = Color.White,
+            Column(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .testTag("loading_spinner")
-            )
+                    .testTag("player_loading_overlay"),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ChannelLogo(
+                    channel = uiState.channel,
+                    modifier = Modifier
+                        .size(96.dp)
+                        .testTag("player_loading_logo")
+                )
+                CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.testTag("loading_spinner")
+                )
+            }
         }
 
         if (uiState.hasFailed) {
@@ -179,8 +192,14 @@ fun PlayerScreen(
                     .padding(24.dp)
                     .testTag("playback_error"),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                ChannelLogo(
+                    channel = uiState.channel,
+                    modifier = Modifier
+                        .size(96.dp)
+                        .testTag("player_loading_logo")
+                )
                 Text(
                     text = stringResource(R.string.player_error_message),
                     style = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
