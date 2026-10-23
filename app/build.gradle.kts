@@ -3,6 +3,13 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val appVersion = providers.gradleProperty("version").getOrElse("1.0.0")
+val versionParts = appVersion.substringBefore("-").split(".").map { it.toIntOrNull() ?: 0 }
+val major = versionParts.getOrElse(0) { 1 }
+val minor = versionParts.getOrElse(1) { 0 }
+val patch = versionParts.getOrElse(2) { 0 }
+val appVersionCode = major * 10000 + minor * 100 + patch
+
 android {
     namespace = "com.gotv.player"
     compileSdk = 34
@@ -11,8 +18,8 @@ android {
         applicationId = "com.gotv.player"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -38,6 +45,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
