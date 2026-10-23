@@ -727,8 +727,39 @@ class ChannelGridScreenTest {
 
         composeTestRule.onNodeWithTag("channel_overflow_menu_button").assertIsDisplayed().performClick()
         composeTestRule.onNodeWithTag("menu_import_channels").assertIsDisplayed().assertTextContains("Import channels")
+        composeTestRule.onNodeWithTag("menu_import_from_url").assertIsDisplayed().assertTextContains("Import from URL")
         composeTestRule.onNodeWithTag("menu_export_channels").assertIsDisplayed().assertTextContains("Export channels")
         composeTestRule.onNodeWithTag("menu_about").assertIsDisplayed().assertTextContains("About")
+    }
+
+    @Test
+    fun overflowMenu_clickingImportFromUrl_opensDialog_andQrScanFillsUrl() {
+        val repository = InMemoryChannelRepository()
+        val viewModel = ChannelGridViewModel(repository)
+        val scanner = FakeQrScannerProvider(cameraPayload = "https://example.com/scanned_channels.json")
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                ChannelGridScreen(viewModel = viewModel, qrScanner = scanner)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("channel_overflow_menu_button").performClick()
+        composeTestRule.onNodeWithTag("menu_import_from_url").performClick()
+
+        composeTestRule.onNodeWithTag("import_from_url_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("import_url_input").assertIsDisplayed().assertTextContains("https://")
+
+        // Trigger QR scanning from inside ImportFromUrlDialog
+        composeTestRule.onNodeWithTag("scan_import_url_qr_button").performClick()
+        composeTestRule.onNodeWithTag("fake_camera").performClick()
+
+        // Verify scanned payload is inserted into import URL input field
+        composeTestRule.onNodeWithTag("import_url_input").assertTextContains("https://example.com/scanned_channels.json")
+
+        // Dismiss dialog
+        composeTestRule.onNodeWithTag("cancel_import_url_button").performClick()
+        composeTestRule.onNodeWithTag("import_from_url_dialog").assertDoesNotExist()
     }
 
     @Test
