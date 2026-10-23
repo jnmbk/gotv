@@ -4,7 +4,7 @@
 
 **Blocked by:** 01-channel-list-downloader
 
-**Status:** open
+**Status:** resolved
 
 ## Design Details
 1. Add state fields to `ChannelGridUiState`:
@@ -22,7 +22,7 @@
 3. Add unit tests for `ChannelGridViewModel` covering all states and edge cases (success flow, invalid URL, network error, parsing error, QR scan target).
 
 ## Acceptance Criteria
-- [ ] UiState models URL import dialog, loading, error, and QR scanner target.
-- [ ] ViewModel orchestrates download, validation, parsing, error reporting, and confirmation.
-- [ ] Comprehensive unit tests verifying ViewModel behavior.
+- [x] UiState models URL import dialog, loading, error, and QR scanner target.
+- [x] ViewModel orchestrates download, validation, parsing, error reporting, and confirmation.
+- [x] Comprehensive unit tests verifying ViewModel behavior.
 
