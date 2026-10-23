@@ -40,7 +40,17 @@ jobs:
 
       - name: Build release APK
         if: ${{ steps.release.outputs.releases_created == 'true' }}
-        run: ./gradlew assembleRelease
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+            export KEYSTORE_FILE="$PWD/release.keystore"
+          fi
+          ./gradlew assembleRelease
 
       - name: Upload Release APK Asset
         if: ${{ steps.release.outputs.releases_created == 'true' }}
@@ -49,5 +59,7 @@ jobs:
         run: |
           TAG="${{ steps.release.outputs.tag_name }}"
           APK_NAME="gotv-${TAG}.apk"
-          cp app/build/outputs/apk/release/app-release-unsigned.apk "$APK_NAME"
+          # Locate built release apk (signed app-release.apk, or fallback app-release-unsigned.apk)
+          APK_PATH=$(find app/build/outputs/apk/release/ -maxdepth 1 -name "app-release*.apk" | head -n 1)
+          cp "$APK_PATH" "$APK_NAME"
           gh release upload "$TAG" "$APK_NAME" --clobber
