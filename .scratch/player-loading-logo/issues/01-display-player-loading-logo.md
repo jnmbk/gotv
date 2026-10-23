@@ -1,6 +1,6 @@
 # Issue 01: Display channel logo in player loading and error overlays
 
-Status: open
+Status: closed
 
 ## Description
 When a channel is loading/buffering or fails in `PlayerScreen`, render the channel logo (or channel placeholder if not available) centered on screen, with the loading spinner or error UI positioned beneath it.
@@ -11,4 +11,8 @@ When a channel is loading/buffering or fails in `PlayerScreen`, render the chann
 3. While `uiState.hasFailed` is true, display the channel logo above the error message and retry buttons.
 4. Logo/placeholder has test tags for automated verification (e.g., `player_loading_logo` or reusing `ChannelLogo`).
 5. Compose UI tests verify the logo is visible when buffering/loading and in error states, and gone when playing.
+
+## Comments
+- Implemented in `PlayerScreen.kt` using `ChannelLogo` with size `96.dp` and test tag `player_loading_logo`.
+- Verified with Compose UI tests in `PlayerScreenTest.kt`.
 
