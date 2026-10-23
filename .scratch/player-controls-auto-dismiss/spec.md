@@ -19,3 +19,9 @@ The on-screen player controls (top bar with back-to-grid button and channel titl
 ### 3. Smooth Transitions
 - Use `AnimatedVisibility` with `fadeIn()` and `fadeOut()` for the top bar and the bottom volume bar so the controls appear and disappear smoothly.
 
+### 4. Immersive Fullscreen Mode
+- When left alone and controls auto-dismiss, the player enters immersive fullscreen mode by hiding the system status bar and navigation bar via `WindowInsetsControllerCompat`.
+- When user interaction restores controls visibility, the system bars are re-shown.
+- Exiting the player restores the system bars for standard dashboard navigation.
+- Transient swipes from the edge reveal transient system bars (`BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`) without breaking playback.
+
