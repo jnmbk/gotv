@@ -44,6 +44,13 @@ class AboutDialogTest {
             .assertIsDisplayed()
             .assertTextContains("v${BuildConfig.VERSION_NAME}")
 
+        // Source Code section
+        composeTestRule.onNodeWithTag("about_dialog_source_code_section").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Source Code").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("about_dialog_source_code_link")
+            .assertIsDisplayed()
+            .assertTextContains("GitHub (jnmbk/gotv)")
+
         // Author section
         composeTestRule.onNodeWithText("Author").assertIsDisplayed()
         composeTestRule.onNodeWithTag("about_dialog_author_link")
@@ -140,7 +147,44 @@ class AboutDialogTest {
         }
 
         // Tapping links with default URI handler shouldn't throw an unhandled crash
+        composeTestRule.onNodeWithTag("about_dialog_source_code_link").performClick()
         composeTestRule.onNodeWithTag("about_dialog_author_link").performClick()
         composeTestRule.onNodeWithTag("about_dialog_license_link").performClick()
+    }
+
+    @Test
+    fun aboutDialog_tappingSourceCodeLink_opensSourceCodeUrl() {
+        var openedUrl: String? = null
+
+        composeTestRule.setContent {
+            GoTvTheme {
+                AboutDialog(
+                    onDismissRequest = {},
+                    sourceCodeUrl = "https://github.com/jnmbk/gotv",
+                    onOpenUrl = { openedUrl = it }
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("about_dialog_source_code_link").performClick()
+        assertEquals("https://github.com/jnmbk/gotv", openedUrl)
+    }
+
+    @Test
+    fun aboutDialog_customSourceCodeParameters_areRenderedCorrectly() {
+        composeTestRule.setContent {
+            GoTvTheme {
+                AboutDialog(
+                    onDismissRequest = {},
+                    sourceCodeLabel = "Repository",
+                    sourceCodeName = "Custom Git Repo"
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Repository").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("about_dialog_source_code_link")
+            .assertIsDisplayed()
+            .assertTextContains("Custom Git Repo")
     }
 }
