@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/jnmbk/gotv/compare/v1.3.0...v1.4.0) (2026-10-23)
+
+
+### Features
+
+* **player:** auto-dismiss volume bar and back to grid button after timeout ([d227f47](https://github.com/jnmbk/gotv/commit/d227f47d80ca7465c8f05841b766f904f972333d))
+* **player:** enter immersive fullscreen mode when controls auto-dismiss ([f0c049a](https://github.com/jnmbk/gotv/commit/f0c049ae40a44fc9cdb4a05afacd2b2e1dd3a2be))
+
+
+### Bug Fixes
+
+* **player:** prevent touches inside sidebar from falling through to viewport ([7701acf](https://github.com/jnmbk/gotv/commit/7701acf3af04d4608f6c910873941473c1a7184a))
+
 ## [1.3.0](https://github.com/jnmbk/gotv/compare/v1.2.0...v1.3.0) (2026-10-23)
 
 
