@@ -29,6 +29,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val qrScanner = if (AndroidQrScannerProvider.hasCamera(applicationContext)) {
+            AndroidQrScannerProvider
+        } else {
+            null
+        }
         setContent {
             GoTvTheme {
                 GoTvApp(
@@ -36,7 +41,7 @@ class MainActivity : ComponentActivity() {
                     logoStorage = logoStorage,
                     playerEngineFactory = { Media3PlayerEngine(applicationContext) },
                     networkMonitor = networkMonitor,
-                    qrScanner = AndroidQrScannerProvider
+                    qrScanner = qrScanner
                 )
             }
         }

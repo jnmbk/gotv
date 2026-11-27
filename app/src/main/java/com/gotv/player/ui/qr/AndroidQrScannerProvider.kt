@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.hardware.camera2.CameraManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -54,6 +55,18 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** Production [QrScannerProvider] backed by CameraX, ZXing and the system image picker. */
 object AndroidQrScannerProvider : QrScannerProvider {
 
+    /**
+     * Returns true if the device currently exposes at least one camera via [CameraManager].
+     * Safely returns false on devices without camera hardware or camera services.
+     */
+    fun hasCamera(context: Context): Boolean {
+        val cameraManager = runCatching {
+            context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+        }.getOrNull() ?: return false
+        val cameraIds = runCatching { cameraManager.cameraIdList }.getOrNull() ?: return false
+        return cameraIds.isNotEmpty()
+    }
+
     @Composable
     override fun CameraScanner(
         onQrDetected: (String) -> Unit,
@@ -61,6 +74,7 @@ object AndroidQrScannerProvider : QrScannerProvider {
         modifier: Modifier
     ) {
         val context = LocalContext.current
+        var cameraUnavailable by remember { mutableStateOf(!hasCamera(context)) }
         var hasPermission by remember {
             mutableStateOf(
                 ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -74,13 +88,29 @@ object AndroidQrScannerProvider : QrScannerProvider {
             hasPermission = granted
             permissionDenied = !granted
         }
-        LaunchedEffect(Unit) {
-            if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
+        LaunchedEffect(cameraUnavailable) {
+            if (!cameraUnavailable && !hasPermission) {
+                runCatching { launcher.launch(Manifest.permission.CAMERA) }
+                    .onFailure { cameraUnavailable = true }
+            }
         }
 
         Box(modifier = modifier.fillMaxSize().testTag("qr_camera_scanner")) {
-            if (hasPermission) {
-                CameraPreview(onQrDetected = onQrDetected)
+            if (cameraUnavailable) {
+                Text(
+                    text = stringResource(R.string.camera_unavailable),
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(24.dp)
+                        .testTag("qr_camera_unavailable")
+                )
+            } else if (hasPermission) {
+                CameraPreview(
+                    onQrDetected = onQrDetected,
+                    onCameraUnavailable = { cameraUnavailable = true }
+                )
             } else if (permissionDenied) {
                 Column(
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
@@ -92,7 +122,12 @@ object AndroidQrScannerProvider : QrScannerProvider {
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) {
+                    Button(
+                        onClick = {
+                            runCatching { launcher.launch(Manifest.permission.CAMERA) }
+                                .onFailure { cameraUnavailable = true }
+                        }
+                    ) {
                         Text(stringResource(R.string.action_grant_permission))
                     }
                 }
@@ -111,60 +146,85 @@ object AndroidQrScannerProvider : QrScannerProvider {
     }
 
     @Composable
-    private fun CameraPreview(onQrDetected: (String) -> Unit) {
+    internal fun CameraPreview(
+        onQrDetected: (String) -> Unit,
+        onCameraUnavailable: () -> Unit = {}
+    ) {
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
         val currentOnDetected by rememberUpdatedState(onQrDetected)
+        val currentOnUnavailable by rememberUpdatedState(onCameraUnavailable)
         val previewView = remember { PreviewView(context) }
 
         DisposableEffect(lifecycleOwner) {
             val executor = Executors.newSingleThreadExecutor()
             val delivered = AtomicBoolean(false)
-            val providerFuture = ProcessCameraProvider.getInstance(context)
+            val disposed = AtomicBoolean(false)
             var provider: ProcessCameraProvider? = null
-            providerFuture.addListener({
-                val cameraProvider = providerFuture.get()
-                provider = cameraProvider
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
-                val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                analysis.setAnalyzer(executor) { image ->
-                    try {
-                        val plane = image.planes[0]
-                        val buffer = plane.buffer
-                        val width = image.width
-                        val height = image.height
-                        val rowStride = plane.rowStride
-                        // Copy the Y plane, dropping row padding.
-                        val data = ByteArray(width * height)
-                        for (row in 0 until height) {
-                            buffer.position(row * rowStride)
-                            buffer.get(data, row * width, width)
-                        }
-                        val text = QrCodeDecoder.decodeLuminance(data, width, height)
-                        if (text != null && delivered.compareAndSet(false, true)) {
-                            ContextCompat.getMainExecutor(context).execute { currentOnDetected(text) }
-                        }
-                    } finally {
-                        image.close()
+            val providerFuture = runCatching { ProcessCameraProvider.getInstance(context) }
+                .onFailure { currentOnUnavailable() }
+                .getOrNull()
+
+            providerFuture?.addListener({
+                if (disposed.get()) return@addListener
+                val bound = runCatching {
+                    val cameraProvider = providerFuture.get()
+                    provider = cameraProvider
+                    val selector = when {
+                        cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) ->
+                            CameraSelector.DEFAULT_BACK_CAMERA
+                        cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) ->
+                            CameraSelector.DEFAULT_FRONT_CAMERA
+                        cameraProvider.availableCameraInfos.isNotEmpty() ->
+                            CameraSelector.Builder().build()
+                        else -> null
+                    } ?: return@runCatching false
+
+                    val preview = Preview.Builder().build().also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
                     }
-                }
-                runCatching {
+                    val analysis = ImageAnalysis.Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build()
+                    analysis.setAnalyzer(executor) { image ->
+                        try {
+                            val plane = image.planes[0]
+                            val buffer = plane.buffer
+                            val width = image.width
+                            val height = image.height
+                            val rowStride = plane.rowStride
+                            // Copy the Y plane, dropping row padding.
+                            val data = ByteArray(width * height)
+                            for (row in 0 until height) {
+                                buffer.position(row * rowStride)
+                                buffer.get(data, row * width, width)
+                            }
+                            val text = QrCodeDecoder.decodeLuminance(data, width, height)
+                            if (text != null && delivered.compareAndSet(false, true)) {
+                                ContextCompat.getMainExecutor(context).execute { currentOnDetected(text) }
+                            }
+                        } finally {
+                            image.close()
+                        }
+                    }
                     cameraProvider.unbindAll()
                     cameraProvider.bindToLifecycle(
                         lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        selector,
                         preview,
                         analysis
                     )
+                    true
+                }.getOrDefault(false)
+
+                if (!bound && !disposed.get()) {
+                    currentOnUnavailable()
                 }
             }, ContextCompat.getMainExecutor(context))
 
             onDispose {
-                provider?.unbindAll()
+                disposed.set(true)
+                runCatching { provider?.unbindAll() }
                 executor.shutdown()
             }
         }
