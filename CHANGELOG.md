@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/jnmbk/gotv/compare/v1.4.1...v1.4.2) (2026-11-27)
+
+
+### Bug Fixes
+
+* **qr:** guard camera availability and CameraX initialization failures ([68483bd](https://github.com/jnmbk/gotv/commit/68483bd311b49fdae9b4a669eb6d1f7e451e49a3))
+
 ## [1.4.1](https://github.com/jnmbk/gotv/compare/v1.4.0...v1.4.1) (2026-10-23)
 
 
